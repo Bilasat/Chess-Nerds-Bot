@@ -1,14 +1,13 @@
 import express from "express";
+import "./index.js"; // <-- Botu burada başlatıyoruz
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Basit bir HTTP endpoint
-app.get("/", (req, res) => res.send("Bot is running!"));
-
-// Sunucuyu başlat
-app.listen(port, () => {
-  console.log(`Web server aktif: ${port}`);
+app.get("/", (req, res) => {
+  res.send("Bot Çalışıyor!");
 });
 
-// Burada hiçbir bot kodu yok, sadece sunucu çalışıyor
+app.listen(port, () => {
+  console.log("Web server aktif: " + port);
+});
