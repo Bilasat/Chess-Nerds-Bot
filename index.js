@@ -69,7 +69,11 @@ async function generateLeaderboardEmbed(guild) {
       continue;
     }
 
-    const member = guild.members.cache.get(userData.id);
+    let member = guild.members.cache.get(userData.id);
+if (!member) {
+  member = await guild.members.fetch(userData.id).catch(() => null);
+}
+
     const name = member ? member.user.username : `Unknown (${userData.id})`;
 
     const categories = Object.entries(userData.wins)
