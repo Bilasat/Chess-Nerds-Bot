@@ -1,12 +1,5 @@
 // index.js — final sürüm (güncellenmiş: addwin announce + profile anlık güncelleme)
 import { Client, GatewayIntentBits, EmbedBuilder, Partials, PermissionsBitField } from "discord.js";
-import dotenv from "dotenv";
-import {
-  getProfile,
-  loadProfiles,
-  saveProfiles,
-  setAboutMe
-} from "./profileDB.js";
 import {
   ActionRowBuilder,
   ChannelSelectMenuBuilder,
@@ -17,9 +10,14 @@ import {
   TextInputStyle
 } from "discord.js";
 
-client.on("interactionCreate", async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-)};
+import dotenv from "dotenv";
+import {
+  getProfile,
+  loadProfiles,
+  saveProfiles,
+  setAboutMe
+} from "./profileDB.js";
+
 dotenv.config();
 
 const PREFIX = ".";
@@ -421,7 +419,11 @@ client.on("messageCreate", async (message) => {
         message.reply("DM gönderilemedi.");
       });
     }
-	  
+	  // SEND KOMUTU
+	
+	client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+  
   // -----------------------------------------
   // /send komutu
   // -----------------------------------------
