@@ -419,7 +419,16 @@ client.on("messageCreate", async (message) => {
         message.reply("DM gönderilemedi.");
       });
     }
-	  // SEND KOMUTU
+	
+  } catch (err) {
+    console.error("Hata:", err);
+    try {
+      await message.reply("Bir hata oluştu, loglar kontrol ediliyor.");
+    } catch {}
+  }
+});
+
+  // SLASH KOMUTLARI
 	
 	client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
@@ -566,14 +575,6 @@ client.on("interactionCreate", async (interaction) => {
     content: "Embed gönderildi!",
     ephemeral: true
   });
-});
-
-  } catch (err) {
-    console.error("Hata:", err);
-    try {
-      await message.reply("Bir hata oluştu, loglar kontrol ediliyor.");
-    } catch {}
-  }
 });
 
 // ----------------------------------------------------
