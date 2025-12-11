@@ -23,6 +23,9 @@ dotenv.config();
 const PREFIX = ".";
 const WINNER_ROLE_ID = "1445571202050424933";
 const ANNOUNCE_CHANNEL_ID = "1381653080885694597"; // tebrik mesajı gidecek kanal
+const LEADERBOARD_CHANNEL_ID = "1448662725738627173";  // sabit leaderboard kanalı
+let   LEADERBOARD_MESSAGE_ID = null;                   // daha sonra kaydedilecek mesaj ID
+
 
 const client = new Client({
   intents: [
@@ -37,7 +40,6 @@ const client = new Client({
 
 async function generateLeaderboardEmbed(guild) {
   const profiles = loadProfiles();
-  const LEADERBOARD_CHANNEL_ID = "1448662725738627173";  // leaderboardun sabit duracağı kanal
   let LEADERBOARD_MESSAGE_ID = null;
 
 
