@@ -7,7 +7,18 @@ import {
   saveProfiles,
   setAboutMe
 } from "./profileDB.js";
+import {
+  ActionRowBuilder,
+  ChannelSelectMenuBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle
+} from "discord.js";
 
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
 dotenv.config();
 
 const PREFIX = ".";
@@ -409,20 +420,7 @@ client.on("messageCreate", async (message) => {
         message.reply("DM gönderilemedi.");
       });
     }
-	  // SEND Komutu ile Text ve Embed Gönderimi
-	import {
-  ActionRowBuilder,
-  ChannelSelectMenuBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle
-} from "discord.js";
-
-client.on("interactionCreate", async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-
+	  
   // -----------------------------------------
   // /send komutu
   // -----------------------------------------
