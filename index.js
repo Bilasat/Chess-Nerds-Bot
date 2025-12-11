@@ -35,6 +35,54 @@ const client = new Client({
   partials: [Partials.Channel]
 });
 
+async function generateLeaderboardEmbed(guild) {
+  const profiles = loadProfiles();
+  const LEADERBOARD_CHANNEL_ID = "1448662725738627173";  // leaderboardun sabit duracağı kanal
+  let LEADERBOARD_MESSAGE_ID = null;
+
+
+  // 10 kişiyi de gösteriyoruz, win’i olmasa bile
+  const arr = Object.entries(profiles)
+    .map(([id, data]) => ({
+      id,
+      total: data.wins ? Object.values(data.wins).reduce((a, b) => a + b, 0) : 0,
+      wins: data.wins || {}
+    }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 10);
+
+  const embed = new EmbedBuilder()
+    .setTitle("🏆 Turnuva Leaderboard")
+    .setColor(0xffd700)
+    .setTimestamp()
+    .setFooter({ text: new Date().toLocaleString() });
+
+  let desc = "";
+
+  for (let i = 0; i < 10; i++) {
+    const userData = arr[i];
+
+    if (!userData) {
+      desc += `**${i + 1}.** -\n`;
+      continue;
+    }
+
+    const member = guild.members.cache.get(userData.id);
+    const name = member ? member.user.username : `Unknown (${userData.id})`;
+
+    const categories = Object.entries(userData.wins)
+      .map(([k, v]) => `• ${k}: ${v}`)
+      .join("\n") || "-";
+
+    desc += `**${i + 1}. ${name}** — ${userData.total} win\n${categories}\n\n`;
+  }
+
+  embed.setDescription(desc.trim());
+  return embed;
+}
+
+
+
 // ----------------------------------------------------
 // HOŞ GELDİN DM
 // ----------------------------------------------------
@@ -348,6 +396,23 @@ client.on("messageCreate", async (message) => {
       } catch (e) {
         console.error("Tebrik mesajı gönderilemedi:", e);
       }
+      
+	  // Sabit leaderboard güncelle
+try {
+  const channel = await client.channels.fetch(LEADERBOARD_CHANNEL_ID).catch(() => null);
+  if (channel) {
+    const embed = await generateLeaderboardEmbed(guild);
+
+    if (LEADERBOARD_MESSAGE_ID) {
+      const msg = await channel.messages.fetch(LEADERBOARD_MESSAGE_ID).catch(() => null);
+      if (msg) {
+        await msg.edit({ embeds: [embed] });
+      }
+    }
+  }
+} catch (e) {
+  console.error("Leaderboard güncellenemedi:", e);
+}
 
       return message.reply(`${member.user.username} → ${category} kategorisine 1 win eklendi!`);
     }
@@ -590,6 +655,26 @@ client.once("ready", () => {
     description: "Belirtilen kanala mesaj gönder"
   }
 ]);
+  // Sabit leaderboard mesajını oluştur veya güncelle
+setTimeout(async () => {
+  const channel = await client.channels.fetch(LEADERBOARD_CHANNEL_ID).catch(() => null);
+  if (!channel || !channel.isTextBased()) return;
+
+  const embed = await generateLeaderboardEmbed(channel.guild);
+
+  // Eğer daha önce mesaj kaydettiysek onu güncelleriz
+  if (LEADERBOARD_MESSAGE_ID) {
+    try {
+      const msg = await channel.messages.fetch(LEADERBOARD_MESSAGE_ID);
+      await msg.edit({ embeds: [embed] });
+      return;
+    } catch {}
+  }
+
+  // Yoksa yeni mesaj oluşturulur
+  const msg = await channel.send({ embeds: [embed] });
+  LEADERBOARD_MESSAGE_ID = msg.id;
+}, 2000);
 
 });
 
