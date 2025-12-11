@@ -19,6 +19,7 @@ import {
 
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
+)};
 dotenv.config();
 
 const PREFIX = ".";
