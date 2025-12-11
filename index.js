@@ -74,13 +74,16 @@ if (!member) {
   member = await guild.members.fetch(userData.id).catch(() => null);
 }
 
-    const name = member ? member.user.username : `Unknown (${userData.id})`;
+    const displayName = member
+  ? `${member.user.username} (${member.toString()})`
+  : `Unknown (${userData.id}) (<@${userData.id}>)`;
+
 
     const categories = Object.entries(userData.wins)
       .map(([k, v]) => `• ${k}: ${v}`)
       .join("\n") || "-";
 
-    desc += `**${i + 1}. ${name}** — ${userData.total} win\n${categories}\n\n`;
+    desc += `**${i + 1}. ${displayName}** — ${userData.total} win\n${categories}\n\n`;
   }
 
   embed.setDescription(desc.trim());
@@ -443,6 +446,30 @@ try {
       profile.wins[category]--;
       if (profile.wins[category] <= 0) delete profile.wins[category];
       saveProfiles();
+	// Sabit leaderboard güncelle (removewin sonrası)
+try {
+  const channel = await client.channels.fetch(LEADERBOARD_CHANNEL_ID).catch(() => null);
+  if (channel && channel.isTextBased()) {
+    const embed = await generateLeaderboardEmbed(guild);
+
+    if (LEADERBOARD_MESSAGE_ID) {
+      const msg = await channel.messages.fetch(LEADERBOARD_MESSAGE_ID).catch(() => null);
+      if (msg) {
+        await msg.edit({ embeds: [embed] });
+      } else {
+        // Eğer kayıtlı mesaj silinmişse, yeni mesaj oluştur ve id'yi güncelle
+        const newMsg = await channel.send({ embeds: [embed] });
+        LEADERBOARD_MESSAGE_ID = newMsg.id;
+      }
+    } else {
+      // Mesaj daha önce hiç oluşturulmamışsa yeni oluştur ve id'yi sakla
+      const newMsg = await channel.send({ embeds: [embed] });
+      LEADERBOARD_MESSAGE_ID = newMsg.id;
+    }
+  }
+} catch (e) {
+  console.error("Leaderboard güncellenemedi (removewin):", e);
+}
 
       return message.reply(`${member.user.username} → ${category} win kaldırıldı`);
     }
