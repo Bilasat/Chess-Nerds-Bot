@@ -22,9 +22,9 @@ dotenv.config();
 
 const PREFIX = ".";
 const WINNER_ROLE_ID = "1445571202050424933";
-const ANNOUNCE_CHANNEL_ID = "1446151038603104459"; // tebrik mesajı gidecek kanal
+const ANNOUNCE_CHANNEL_ID = "1381653080885694597"; // tebrik mesajı gidecek kanal
 const LEADERBOARD_CHANNEL_ID = "1448662725738627173";  // sabit leaderboard kanalı
-let   LEADERBOARD_MESSAGE_ID = null;                   // daha sonra kaydedilecek mesaj ID
+let   LEADERBOARD_MESSAGE_ID = "1448677383107514479";                   // daha sonra kaydedilecek mesaj ID
 
 
 const client = new Client({
@@ -40,7 +40,7 @@ const client = new Client({
 
 async function generateLeaderboardEmbed(guild) {
   const profiles = loadProfiles();
-  let LEADERBOARD_MESSAGE_ID = null;
+  let LEADERBOARD_MESSAGE_ID = "1448677383107514479";
 
 
   // 10 kişiyi de gösteriyoruz, win’i olmasa bile
@@ -712,4 +712,3 @@ setTimeout(async () => {
 });
 
 client.login(process.env.TOKEN);
-
