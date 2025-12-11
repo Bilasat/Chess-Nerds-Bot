@@ -409,6 +409,163 @@ client.on("messageCreate", async (message) => {
         message.reply("DM gönderilemedi.");
       });
     }
+	  // SEND Komutu ile Text ve Embed Gönderimi
+	import {
+  ActionRowBuilder,
+  ChannelSelectMenuBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle
+} from "discord.js";
+
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+
+  // -----------------------------------------
+  // /send komutu
+  // -----------------------------------------
+  if (interaction.commandName === "send") {
+    const channelSelect = new ActionRowBuilder().addComponents(
+      new ChannelSelectMenuBuilder()
+        .setCustomId("send_select_channel")
+        .setPlaceholder("Mesaj göndermek için kanal seç")
+        .addChannelTypes(0) // 0 = GUILD_TEXT
+    );
+
+    await interaction.reply({
+      content: "Göndermek istediğin kanalı seç:",
+      components: [channelSelect],
+      ephemeral: true
+    });
+  }
+});
+
+// -----------------------------------------
+// Kanal seçildikten sonra mesaj türü seçimi
+// -----------------------------------------
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isChannelSelectMenu()) return;
+  if (interaction.customId !== "send_select_channel") return;
+
+  const selectedChannel = interaction.values[0];
+
+  const buttons = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`send_text_${selectedChannel}`)
+      .setLabel("Düz Metin")
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId(`send_embed_${selectedChannel}`)
+      .setLabel("Embed")
+      .setStyle(ButtonStyle.Success)
+  );
+
+  await interaction.update({
+    content: `Seçilen kanal: <#${selectedChannel}>\nGönderim türünü seç:`,
+    components: [buttons]
+  });
+});
+
+// -----------------------------------------
+// Düz metin gönderme
+// -----------------------------------------
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isButton()) return;
+  if (!interaction.customId.startsWith("send_text_")) return;
+
+  const channelId = interaction.customId.replace("send_text_", "");
+
+  const modal = new ModalBuilder()
+    .setCustomId(`send_text_modal_${channelId}`)
+    .setTitle("Düz Metin Gönder");
+
+  const input = new TextInputBuilder()
+    .setCustomId("send_text_content")
+    .setLabel("Gönderilecek mesaj")
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(true);
+
+  modal.addComponents(new ActionRowBuilder().addComponents(input));
+
+  await interaction.showModal(modal);
+});
+
+// Modal sonucu
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isModalSubmit()) return;
+  if (!interaction.customId.startsWith("send_text_modal_")) return;
+
+  const channelId = interaction.customId.replace("send_text_modal_", "");
+  const channel = await interaction.guild.channels.fetch(channelId);
+
+  const content = interaction.fields.getTextInputValue("send_text_content");
+
+  await channel.send(content);
+
+  await interaction.reply({
+    content: "Mesaj gönderildi!",
+    ephemeral: true
+  });
+});
+
+// -----------------------------------------
+// Embed gönderme
+// -----------------------------------------
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isButton()) return;
+  if (!interaction.customId.startsWith("send_embed_")) return;
+
+  const channelId = interaction.customId.replace("send_embed_", "");
+
+  const modal = new ModalBuilder()
+    .setCustomId(`send_embed_modal_${channelId}`)
+    .setTitle("Embed Oluştur");
+
+  const title = new TextInputBuilder()
+    .setCustomId("embed_title")
+    .setLabel("Başlık")
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  const desc = new TextInputBuilder()
+    .setCustomId("embed_description")
+    .setLabel("İçerik")
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(title),
+    new ActionRowBuilder().addComponents(desc)
+  );
+
+  await interaction.showModal(modal);
+});
+
+// Embed modal sonucu
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isModalSubmit()) return;
+  if (!interaction.customId.startsWith("send_embed_modal_")) return;
+
+  const channelId = interaction.customId.replace("send_embed_modal_", "");
+  const channel = await interaction.guild.channels.fetch(channelId);
+
+  const title = interaction.fields.getTextInputValue("embed_title");
+  const desc = interaction.fields.getTextInputValue("embed_description");
+
+  const embed = new EmbedBuilder()
+    .setTitle(title)
+    .setDescription(desc)
+    .setColor(0x0099ff);
+
+  await channel.send({ embeds: [embed] });
+
+  await interaction.reply({
+    content: "Embed gönderildi!",
+    ephemeral: true
+  });
+});
 
   } catch (err) {
     console.error("Hata:", err);
@@ -421,6 +578,17 @@ client.on("messageCreate", async (message) => {
 // ----------------------------------------------------
 client.once("ready", () => {
   console.log(`Bot aktif → ${client.user.tag}`);
+  client.application.commands.set([
+  {
+    name: "ping",
+    description: "Botun gecikmesini ölçer."
+  },
+  {
+    name: "send",
+    description: "Belirtilen kanala mesaj gönder"
+  }
+]);
+
 });
 
 client.login(process.env.TOKEN);
