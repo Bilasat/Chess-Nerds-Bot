@@ -3,73 +3,92 @@ import fs from "fs";
 import path from "path";
 import { Buffer } from "buffer";
 
+// -------------------------------------------------------
+// CONFIG
+// -------------------------------------------------------
 const LOCAL_DB = path.join(process.cwd(), "profiles.json");
 
-// GitHub config from env (defaults provided)
 const GITHUB_TOKEN = process.env.GH_TOKEN || null;
 const GITHUB_OWNER = process.env.GH_USER || "Bilasat";
 const GITHUB_REPO = process.env.GH_REPO || "Chess-Nerds-Bot-Database";
 const GITHUB_BRANCH = process.env.GH_BRANCH || "main";
-const REMOTE_PATH = "profiles.json"; // path inside repo
+const REMOTE_PATH = "profiles.json";
 
-// --- Helper: fetch wrapper for node global fetch ---
+// -------------------------------------------------------
+// Helper: GitHub Fetch
+// -------------------------------------------------------
 async function ghFetch(url, opts = {}) {
-  const defaultHeaders = {
+  const headers = {
     "User-Agent": "chess-nerds-bot",
     Accept: "application/vnd.github.v3+json"
   };
-  if (GITHUB_TOKEN) defaultHeaders.Authorization = `token ${GITHUB_TOKEN}`;
-  opts.headers = Object.assign(defaultHeaders, opts.headers || {});
-  return fetch(url, opts);
+  if (GITHUB_TOKEN) headers.Authorization = `token ${GITHUB_TOKEN}`;
+
+  return fetch(url, {
+    ...opts,
+    headers: { ...headers, ...(opts.headers || {}) }
+  });
 }
 
-// ---------------------------------------------
-// GitHub: get file metadata + content
-// returns { content: <string>, sha: <string> } or null
-// ---------------------------------------------
+// -------------------------------------------------------
+// GitHub GET
+// -------------------------------------------------------
 async function githubGetFile() {
   if (!GITHUB_TOKEN) return null;
-  const url = `https://api.github.com/repos/${encodeURIComponent(GITHUB_OWNER)}/${encodeURIComponent(GITHUB_REPO)}/contents/${encodeURIComponent(REMOTE_PATH)}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
+
+  const url =
+    `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}` +
+    `/contents/${REMOTE_PATH}?ref=${GITHUB_BRANCH}`;
+
   try {
     const res = await ghFetch(url);
+
     if (res.status === 404) return null;
     if (!res.ok) {
       console.error("GitHub GET error:", res.status, await res.text());
       return null;
     }
-    const j = await res.json();
-    if (!j.content) return null;
-    const content = Buffer.from(j.content, "base64").toString("utf8");
-    return { content, sha: j.sha };
+
+    const data = await res.json();
+    if (!data.content) return null;
+
+    const content = Buffer.from(data.content, "base64").toString("utf8");
+    return { content, sha: data.sha };
   } catch (err) {
     console.error("githubGetFile error:", err);
     return null;
   }
 }
 
-// ---------------------------------------------
-// GitHub: put/update file
-// body: { message, content (utf8 string), sha? }
-// returns true/false
-// ---------------------------------------------
-async function githubPutFile({ message = "update profiles.json", content = "{}", sha = null }) {
+// -------------------------------------------------------
+// GitHub PUT
+// -------------------------------------------------------
+async function githubPutFile({ message, content, sha = null }) {
   if (!GITHUB_TOKEN) return false;
-  const url = `https://api.github.com/repos/${encodeURIComponent(GITHUB_OWNER)}/${encodeURIComponent(GITHUB_REPO)}/contents/${encodeURIComponent(REMOTE_PATH)}`;
+
+  const url =
+    `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}` +
+    `/contents/${REMOTE_PATH}`;
+
   const body = {
     message,
     content: Buffer.from(content, "utf8").toString("base64"),
     branch: GITHUB_BRANCH
   };
+
   if (sha) body.sha = sha;
+
   try {
     const res = await ghFetch(url, {
       method: "PUT",
       body: JSON.stringify(body)
     });
+
     if (!res.ok) {
       console.error("GitHub PUT error:", res.status, await res.text());
       return false;
     }
+
     return true;
   } catch (err) {
     console.error("githubPutFile error:", err);
@@ -77,128 +96,102 @@ async function githubPutFile({ message = "update profiles.json", content = "{}",
   }
 }
 
-// ---------------------------------------------
-// Fallback local read/write helpers
-// ---------------------------------------------
+// -------------------------------------------------------
+// LOCAL fallback
+// -------------------------------------------------------
 function localRead() {
   try {
     if (!fs.existsSync(LOCAL_DB)) {
       fs.writeFileSync(LOCAL_DB, JSON.stringify({}, null, 2));
       return {};
     }
-    const raw = fs.readFileSync(LOCAL_DB, "utf8");
-    return JSON.parse(raw || "{}");
+    return JSON.parse(fs.readFileSync(LOCAL_DB, "utf8"));
   } catch (err) {
     console.error("localRead error:", err);
     return {};
   }
 }
+
 function localWrite(obj) {
   try {
     fs.writeFileSync(LOCAL_DB, JSON.stringify(obj, null, 2));
-    return true;
   } catch (err) {
     console.error("localWrite error:", err);
-    return false;
   }
 }
 
-// ---------------------------------------------
-// RAM cache for profiles
-// ---------------------------------------------
+// -------------------------------------------------------
+// RAM CACHE
+// -------------------------------------------------------
 let profiles = {};
 
-// ---------------------------------------------
-// VERİTABANINI YÜKLER
-// - Öncelik: GitHub (okuma)
-// - Fallback: local file
-// - Eğer remote yoksa oluşturur
-// ---------------------------------------------
+// -------------------------------------------------------
+// LOAD (GitHub → Local → Empty)
+// -------------------------------------------------------
 export async function loadProfiles() {
-  // If already loaded in RAM, return it
-  if (profiles && Object.keys(profiles).length) return profiles;
+  // RAM already loaded
+  if (Object.keys(profiles).length > 0) return profiles;
 
-  // Try GitHub
+  // First try GitHub
   const remote = await githubGetFile();
   if (remote && remote.content) {
     try {
       profiles = JSON.parse(remote.content);
-      // persist locally as cache
-      try { localWrite(profiles); } catch {}
+      localWrite(profiles);
       return profiles;
-    } catch (err) {
-      console.error("Failed parse remote profiles.json:", err);
-      // fallthrough to local read
+    } catch {
+      console.error("Remote profiles.json parse error");
     }
   }
 
-  // Try local
+  // Fallback local
   profiles = localRead();
-  // If local missing/empty, initialize & push to remote if possible
+
+  // If empty → create
   if (!profiles || Object.keys(profiles).length === 0) {
     profiles = {};
-    // push initial empty file to GitHub to ensure repo has it
-    try {
-      const putOk = await githubPutFile({ message: "Init profiles.json (bot)", content: JSON.stringify(profiles, null, 2) });
-      if (!putOk) {
-        // ensure local written
-        localWrite(profiles);
-      }
-    } catch (e) {
-      localWrite(profiles);
-    }
+    const ok = await githubPutFile({
+      message: "Init profiles.json",
+      content: JSON.stringify(profiles, null, 2)
+    });
+    if (!ok) localWrite(profiles);
   }
+
   return profiles;
 }
 
-// ---------------------------------------------
-// VERİTABANI KAYDET
-// - Güncel RAM 'profiles' ı önce GitHub'a yazmayı dener
-// - Başarısız olursa local'a kaydeder
-// ---------------------------------------------
+// -------------------------------------------------------
+// SAVE (RAM → GitHub → Local)
+// -------------------------------------------------------
 export async function saveProfiles() {
-  // stringify
   const content = JSON.stringify(profiles, null, 2);
 
-  // Try fetch current sha first (to update)
   try {
     const remote = await githubGetFile();
     const sha = remote ? remote.sha : null;
+
     const ok = await githubPutFile({
-      message: "Update profiles.json (bot)",
+      message: "Update profiles.json",
       content,
       sha
     });
+
     if (ok) {
-      // also keep local cache updated
-      try { localWrite(profiles); } catch {}
-      return true;
-    } else {
-      // fallback to local
       localWrite(profiles);
-      return false;
+      return true;
     }
-  } catch (err) {
-    console.error("saveProfiles error:", err);
-    localWrite(profiles);
-    return false;
-  }
+  } catch {}
+
+  // fallback
+  localWrite(profiles);
+  return false;
 }
 
-// ---------------------------------------------
-// PROFİL GETİR / OLUŞTUR
-// (synchronous semantics kept for compatibility with index.js)
-// ---------------------------------------------
+// -------------------------------------------------------
+// CORE FUNCTIONS (index.js ile %100 uyumlu)
+// -------------------------------------------------------
 export function getProfile(userId) {
-  // If profiles not loaded yet (RAM empty) — try synchronous local read
-  if (!profiles || Object.keys(profiles).length === 0) {
-    try {
-      // load from local file (non-blocking alternative to awaiting loadProfiles)
-      profiles = localRead();
-    } catch (e) {
-      profiles = {};
-    }
-  }
+  if (Object.keys(profiles).length === 0) profiles = localRead();
 
   if (!profiles[userId]) {
     profiles[userId] = {
@@ -207,68 +200,62 @@ export function getProfile(userId) {
       chesscom: null,
       wins: {}
     };
-    // save asynchronously (don't block caller)
     saveProfiles().catch(() => {});
   }
+
   return profiles[userId];
 }
 
-// ---------------------------------------------
-// ABOUT ME
-// ---------------------------------------------
 export function setAboutMe(userId, text) {
-  const profile = getProfile(userId);
-  profile.aboutMe = text;
+  const p = getProfile(userId);
+  p.aboutMe = text;
   saveProfiles().catch(() => {});
-  return profile;
+  return p;
 }
 
-// ---------------------------------------------
-// LICHESS / CHESS.COM helpers
-// ---------------------------------------------
 export function setLichess(userId, data) {
-  const profile = getProfile(userId);
-  profile.lichess = data;
+  const p = getProfile(userId);
+  p.lichess = data;
   saveProfiles().catch(() => {});
-  return profile;
+  return p;
 }
+
 export function setChessCom(userId, data) {
-  const profile = getProfile(userId);
-  profile.chesscom = data;
+  const p = getProfile(userId);
+  p.chesscom = data;
   saveProfiles().catch(() => {});
-  return profile;
+  return p;
 }
+
 export function removeLichess(userId) {
-  const profile = getProfile(userId);
-  profile.lichess = null;
+  const p = getProfile(userId);
+  p.lichess = null;
   saveProfiles().catch(() => {});
 }
+
 export function removeChessCom(userId) {
-  const profile = getProfile(userId);
-  profile.chesscom = null;
+  const p = getProfile(userId);
+  p.chesscom = null;
   saveProfiles().catch(() => {});
 }
 
-// ---------------------------------------------
-// WIN EKLE / KALDIR
-// ---------------------------------------------
 export function addWin(userId, category) {
-  const profile = getProfile(userId);
-  if (!profile.wins) profile.wins = {};
-  profile.wins[category] = (profile.wins[category] || 0) + 1;
+  const p = getProfile(userId);
+  if (!p.wins) p.wins = {};
+  p.wins[category] = (p.wins[category] || 0) + 1;
   saveProfiles().catch(() => {});
-  return profile;
-}
-export function removeWin(userId, category) {
-  const profile = getProfile(userId);
-  if (!profile.wins || !profile.wins[category]) return profile;
-  profile.wins[category]--;
-  if (profile.wins[category] <= 0) delete profile.wins[category];
-  saveProfiles().catch(() => {});
-  return profile;
+  return p;
 }
 
-// ---------------------------------------------
-// EXPORT convenience: ensure loadProfiles exported as-sync wrapper
-// ---------------------------------------------
+export function removeWin(userId, category) {
+  const p = getProfile(userId);
+  if (!p.wins || !p.wins[category]) return p;
+
+  p.wins[category]--;
+  if (p.wins[category] <= 0) delete p.wins[category];
+
+  saveProfiles().catch(() => {});
+  return p;
+}
+
 export { loadProfiles as loadProfilesAsync };
