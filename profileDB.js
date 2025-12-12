@@ -9,7 +9,7 @@ const LOCAL_DB = path.join(process.cwd(), "profiles.json");
 const GITHUB_TOKEN = process.env.GH_TOKEN || null;
 const GITHUB_OWNER = process.env.GH_USER || "Bilasat";
 const GITHUB_REPO = process.env.GH_REPO || "Chess-Nerds-Bot-Database";
-const GITHUB_BRANCH = process.env.GITHUB_BRANCH || "main";
+const GITHUB_BRANCH = process.env.GH_BRANCH || "main";
 const REMOTE_PATH = "profiles.json"; // path inside repo
 
 // --- Helper: fetch wrapper for node global fetch ---
