@@ -1,4 +1,3 @@
-// profileDB.js
 import fs from "fs";
 import path from "path";
 import { Buffer } from "buffer";
@@ -20,13 +19,13 @@ const REMOTE_PATH = "profiles.json";
 async function ghFetch(url, opts = {}) {
   const headers = {
     "User-Agent": "chess-nerds-bot",
-    Accept: "application/vnd.github.v3+json"
+    Accept: "application/vnd.github.v3+json",
   };
-  if (GITHUB_TOKEN) headers.Authorization = `token ${GITHUB_TOKEN}`;
+  if (GITHUB_TOKEN) headers.Authorization = `Bearer ${GITHUB_TOKEN}`;
 
   return fetch(url, {
     ...opts,
-    headers: { ...headers, ...(opts.headers || {}) }
+    headers: { ...headers, ...(opts.headers || {}) },
   });
 }
 
@@ -43,16 +42,19 @@ async function githubGetFile() {
   try {
     const res = await ghFetch(url);
 
-    if (res.status === 404) return null;
+    if (res.status === 404) {
+      console.warn("GitHub GET: profiles.json does not exist.");
+      return null;
+    }
+
     if (!res.ok) {
       console.error("GitHub GET error:", res.status, await res.text());
       return null;
     }
 
     const data = await res.json();
-    if (!data.content) return null;
-
     const content = Buffer.from(data.content, "base64").toString("utf8");
+
     return { content, sha: data.sha };
   } catch (err) {
     console.error("githubGetFile error:", err);
@@ -61,9 +63,9 @@ async function githubGetFile() {
 }
 
 // -------------------------------------------------------
-// GitHub PUT
+// GitHub PUT (Requires SHA)
 // -------------------------------------------------------
-async function githubPutFile({ message, content, sha = null }) {
+async function githubPutFile({ message, content, sha }) {
   if (!GITHUB_TOKEN) return false;
 
   const url =
@@ -73,15 +75,14 @@ async function githubPutFile({ message, content, sha = null }) {
   const body = {
     message,
     content: Buffer.from(content, "utf8").toString("base64"),
-    branch: GITHUB_BRANCH
+    branch: GITHUB_BRANCH,
+    sha,
   };
-
-  if (sha) body.sha = sha;
 
   try {
     const res = await ghFetch(url, {
       method: "PUT",
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
@@ -126,69 +127,63 @@ function localWrite(obj) {
 let profiles = {};
 
 // -------------------------------------------------------
-// LOAD (GitHub → Local → Empty)
+// LOAD
 // -------------------------------------------------------
 export async function loadProfiles() {
-  // RAM already loaded
   if (Object.keys(profiles).length > 0) return profiles;
 
-  // First try GitHub
   const remote = await githubGetFile();
+
   if (remote && remote.content) {
     try {
       profiles = JSON.parse(remote.content);
       localWrite(profiles);
       return profiles;
-    } catch {
-      console.error("Remote profiles.json parse error");
+    } catch (err) {
+      console.error("Remote JSON parse error:", err);
     }
   }
 
-  // Fallback local
   profiles = localRead();
-
-  // If empty → create
-  if (!profiles || Object.keys(profiles).length === 0) {
-    profiles = {};
-    const ok = await githubPutFile({
-      message: "Init profiles.json",
-      content: JSON.stringify(profiles, null, 2)
-    });
-    if (!ok) localWrite(profiles);
-  }
-
   return profiles;
 }
 
 // -------------------------------------------------------
-// SAVE (RAM → GitHub → Local)
+// SAVE (GitHub → Local)
 // -------------------------------------------------------
 export async function saveProfiles() {
   const content = JSON.stringify(profiles, null, 2);
 
   try {
-    const remote = await githubGetFile();
-    const sha = remote ? remote.sha : null;
+    let remote = await githubGetFile();
+
+    // File missing → create empty one first
+    if (!remote) {
+      console.warn("profiles.json missing. Creating new file on GitHub...");
+      remote = { sha: null };
+    }
 
     const ok = await githubPutFile({
       message: "Update profiles.json",
       content,
-      sha
+      sha: remote.sha,
     });
 
     if (ok) {
       localWrite(profiles);
+      console.log("Profiles synced to GitHub.");
       return true;
     }
-  } catch {}
+  } catch (err) {
+    console.error("saveProfiles error:", err);
+  }
 
-  // fallback
   localWrite(profiles);
   return false;
 }
 
 // -------------------------------------------------------
-// CORE FUNCTIONS (index.js ile %100 uyumlu)
+// CORE FUNCTIONS
 // -------------------------------------------------------
 export function getProfile(userId) {
   if (Object.keys(profiles).length === 0) profiles = localRead();
@@ -198,7 +193,7 @@ export function getProfile(userId) {
       aboutMe: "",
       lichess: null,
       chesscom: null,
-      wins: {}
+      wins: {},
     };
     saveProfiles().catch(() => {});
   }
