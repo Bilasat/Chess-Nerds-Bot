@@ -8,7 +8,7 @@ const LOCAL_DB = path.join(process.cwd(), "profiles.json");
 // GitHub config from env (defaults provided)
 const GITHUB_TOKEN = process.env.GH_TOKEN || null;
 const GITHUB_OWNER = process.env.GH_USER || "Bilasat";
-const GITHUB_REPO = process.env.GH_REPO || "Bilasat/Chess-Nerds-Bot-Database";
+const GITHUB_REPO = process.env.GH_REPO || "Chess-Nerds-Bot-Database";
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || "main";
 const REMOTE_PATH = "profiles.json"; // path inside repo
 
