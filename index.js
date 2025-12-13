@@ -22,7 +22,7 @@ dotenv.config();
 
 const PREFIX = ".";
 const WINNER_ROLE_ID = "1445571202050424933";
-const ANNOUNCE_CHANNEL_ID = "1388662725738627173"; // dikkat: eğer farklı -> düzelt
+const ANNOUNCE_CHANNEL_ID = "1381653080885694597"; // dikkat: eğer farklı -> düzelt
 const LEADERBOARD_CHANNEL_ID = "1448662725738627173";  // sabit leaderboard kanalı
 let   LEADERBOARD_MESSAGE_ID = "1448677383107514479"; // daha sonra kaydedilecek mesaj ID
 
@@ -441,22 +441,189 @@ client.on("messageCreate", async (message) => {
   }
 });
 
-// ----------------------------------------------------
-// Slash + interactions (keeps your existing behavior)
-// (unchanged for brevity — keep your blocks for send/embed modals)
-client.on("interactionCreate", async (interaction) => {
+// SLASH KOMUTLARI
+	
+	client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
+  
+  // -----------------------------------------
+  // /send komutu
+  // -----------------------------------------
   if (interaction.commandName === "send") {
     const channelSelect = new ActionRowBuilder().addComponents(
       new ChannelSelectMenuBuilder()
         .setCustomId("send_select_channel")
         .setPlaceholder("Mesaj göndermek için kanal seç")
-        .addChannelTypes(0)
+        .addChannelTypes(0) // 0 = GUILD_TEXT
     );
-    await interaction.reply({ content: "Göndermek istediğin kanalı seç:", components: [channelSelect], ephemeral: true });
+
+    await interaction.reply({
+      content: "Göndermek istediğin kanalı seç:",
+      components: [channelSelect],
+      ephemeral: true
+    });
   }
 });
 
-// (Additional interaction handlers for channel select, buttons, modals — keep them unchanged as in your repo)
+// -----------------------------------------
+// Kanal seçildikten sonra mesaj türü seçimi
+// -----------------------------------------
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isChannelSelectMenu()) return;
+  if (interaction.customId !== "send_select_channel") return;
+
+  const selectedChannel = interaction.values[0];
+
+  const buttons = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`send_text_${selectedChannel}`)
+      .setLabel("Düz Metin")
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId(`send_embed_${selectedChannel}`)
+      .setLabel("Embed")
+      .setStyle(ButtonStyle.Success)
+  );
+
+  await interaction.update({
+    content: `Seçilen kanal: <#${selectedChannel}>\nGönderim türünü seç:`,
+    components: [buttons]
+  });
+});
+
+// -----------------------------------------
+// Düz metin gönderme
+// -----------------------------------------
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isButton()) return;
+  if (!interaction.customId.startsWith("send_text_")) return;
+
+  const channelId = interaction.customId.replace("send_text_", "");
+
+  const modal = new ModalBuilder()
+    .setCustomId(`send_text_modal_${channelId}`)
+    .setTitle("Düz Metin Gönder");
+
+  const input = new TextInputBuilder()
+    .setCustomId("send_text_content")
+    .setLabel("Gönderilecek mesaj")
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(true);
+
+  modal.addComponents(new ActionRowBuilder().addComponents(input));
+
+  await interaction.showModal(modal);
+});
+
+// Modal sonucu
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isModalSubmit()) return;
+  if (!interaction.customId.startsWith("send_text_modal_")) return;
+
+  const channelId = interaction.customId.replace("send_text_modal_", "");
+  const channel = await interaction.guild.channels.fetch(channelId);
+
+  const content = interaction.fields.getTextInputValue("send_text_content");
+
+  await channel.send(content);
+
+  await interaction.reply({
+    content: "Mesaj gönderildi!",
+    ephemeral: true
+  });
+});
+
+// -----------------------------------------
+// Embed gönderme
+// -----------------------------------------
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isButton()) return;
+  if (!interaction.customId.startsWith("send_embed_")) return;
+
+  const channelId = interaction.customId.replace("send_embed_", "");
+
+  const modal = new ModalBuilder()
+    .setCustomId(`send_embed_modal_${channelId}`)
+    .setTitle("Embed Oluştur");
+
+  const title = new TextInputBuilder()
+    .setCustomId("embed_title")
+    .setLabel("Başlık")
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  const desc = new TextInputBuilder()
+    .setCustomId("embed_description")
+    .setLabel("İçerik")
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(title),
+    new ActionRowBuilder().addComponents(desc)
+  );
+
+  await interaction.showModal(modal);
+});
+
+// Embed modal sonucu
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isModalSubmit()) return;
+  if (!interaction.customId.startsWith("send_embed_modal_")) return;
+
+  const channelId = interaction.customId.replace("send_embed_modal_", "");
+  const channel = await interaction.guild.channels.fetch(channelId);
+
+  const title = interaction.fields.getTextInputValue("embed_title");
+  const desc = interaction.fields.getTextInputValue("embed_description");
+
+  const embed = new EmbedBuilder()
+    .setTitle(title)
+    .setDescription(desc)
+    .setColor(0x0099ff);
+
+  await channel.send({ embeds: [embed] });
+
+  await interaction.reply({
+    content: "Embed gönderildi!",
+    ephemeral: true
+  });
+});
+
+// ----------------------------------------------------
+client.once("ready", () => {
+  console.log(`Bot aktif → ${client.user.tag}`);
+  client.application.commands.set([
+  {
+    name: "ping",
+    description: "Botun gecikmesini ölçer."
+  },
+  {
+    name: "send",
+    description: "Belirtilen kanala mesaj gönder"
+  }
+]);
+  // Sabit leaderboard mesajını oluştur veya güncelle
+setTimeout(async () => {
+  const channel = await client.channels.fetch(LEADERBOARD_CHANNEL_ID).catch(() => null);
+  if (!channel || !channel.isTextBased()) return;
+
+  const embed = await generateLeaderboardEmbed(channel.guild);
+
+  // Eğer daha önce mesaj kaydettiysek onu güncelleriz
+  if (LEADERBOARD_MESSAGE_ID) {
+    try {
+      const msg = await channel.messages.fetch(LEADERBOARD_MESSAGE_ID);
+      await msg.edit({ embeds: [embed] });
+      return;
+    } catch {}
+  }
+
+  // Yoksa yeni mesaj oluşturulur
+  const msg = await channel.send({ embeds: [embed] });
+  LEADERBOARD_MESSAGE_ID = msg.id;
+}, 2000);
+
+});
 
 client.login(process.env.TOKEN);
