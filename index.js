@@ -18,6 +18,8 @@ import {
   setAboutMe
 } from "./profileDB.js";
 
+import { isAFK, setAFK, removeAFK, getAFK } from "./afkDB.js";
+
 dotenv.config();
 
 const PREFIX = ".";
