@@ -21,6 +21,7 @@ import {
 dotenv.config();
 
 const PREFIX = ".";
+const afkUsers = new Map();
 const WINNER_ROLE_ID = "1445571202050424933";
 const ANNOUNCE_CHANNEL_ID = "1381653080885694597"; // dikkat: eğer farklı -> düzelt
 const LEADERBOARD_CHANNEL_ID = "1448662725738627173";  // sabit leaderboard kanalı
@@ -174,6 +175,91 @@ client.on("messageCreate", async (message) => {
       if (!isAdmin) { message.reply("Bu komutu kullanmak için gerekli izinlere sahip değilsin."); return false; }
       return true;
     };
+
+client.on("messageCreate", async (message) => {
+  if (message.author.bot || !message.guild) return;
+
+  const prefix = ".";
+  const args = message.content.trim().split(" ");
+  const command = args.shift()?.toLowerCase();
+
+  // -----------------------------------------
+  // .afk KOMUTU
+  // -----------------------------------------
+  if (cmd === "afk") {
+    const note = args.join(" ") || null;
+    const member = message.member;
+
+    if (!member) return;
+
+    // Zaten AFK ise tekrar ekleme
+    if (!afkUsers.has(member.id)) {
+      afkUsers.set(member.id, {
+        note,
+        oldNick: member.nickname || member.user.username
+      });
+
+      // Nickname güncelle
+      const newNick = `**[AFK]** ${afkUsers.get(member.id).oldNick}`;
+      try {
+        await member.setNickname(newNick);
+      } catch {}
+
+      await message.reply({
+        content: note
+          ? `AFK moduna geçtin. 💤\nNot: **${note}**`
+          : `AFK moduna geçtin. 💤`,
+        allowedMentions: { repliedUser: false }
+      });
+    }
+
+    return;
+  }
+
+  // -----------------------------------------
+  // AFK'DEN ÇIKMA (mesaj atınca)
+  // -----------------------------------------
+  if (afkUsers.has(message.author.id)) {
+    const data = afkUsers.get(message.author.id);
+    afkUsers.delete(message.author.id);
+
+    try {
+      await message.member.setNickname(data.oldNick);
+    } catch {}
+
+    const msg = await message.reply({
+      content: `AFK modundan çıktın, hoş geldin 👋`,
+      allowedMentions: { repliedUser: false }
+    });
+
+    setTimeout(() => msg.delete().catch(() => {}), 5000);
+  }
+
+  // -----------------------------------------
+  // AFK KİŞİ ETİKETLENİRSE / REPLY ATILIRSA
+  // -----------------------------------------
+  const mentioned =
+    message.mentions.users.first() ||
+    (message.reference
+      ? await message.channel.messages
+          .fetch(message.reference.messageId)
+          .then(m => m.author)
+          .catch(() => null)
+      : null);
+
+  if (mentioned && afkUsers.has(mentioned.id)) {
+    const afkData = afkUsers.get(mentioned.id);
+
+    const warn = await message.reply({
+      content: afkData.note
+        ? `🚫 **${mentioned.username}** şu an AFK.\n📝 Not: **${afkData.note}**`
+        : `🚫 **${mentioned.username}** şu an AFK.`,
+      allowedMentions: { repliedUser: false }
+    });
+
+    setTimeout(() => warn.delete().catch(() => {}), 5000);
+  }
+});
 
     // .setaboutme
     if (cmd === "setaboutme") {
@@ -443,13 +529,22 @@ client.on("messageCreate", async (message) => {
 
 // SLASH KOMUTLARI
 	
-	client.on("interactionCreate", async (interaction) => {
+client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
-  
+
   // -----------------------------------------
-  // /send komutu
+  // /send komutu (SADECE ADMIN)
   // -----------------------------------------
   if (interaction.commandName === "send") {
+
+    // ADMIN KONTROLÜ
+    if (!interaction.memberPermissions?.has("Administrator")) {
+      return interaction.reply({
+        content: "❌ Bu komutu sadece yöneticiler kullanabilir.",
+        ephemeral: true
+      });
+    }
+
     const channelSelect = new ActionRowBuilder().addComponents(
       new ChannelSelectMenuBuilder()
         .setCustomId("send_select_channel")
@@ -464,6 +559,7 @@ client.on("messageCreate", async (message) => {
     });
   }
 });
+
 
 // -----------------------------------------
 // Kanal seçildikten sonra mesaj türü seçimi
