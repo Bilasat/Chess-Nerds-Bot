@@ -21,7 +21,6 @@ import {
 dotenv.config();
 
 const PREFIX = ".";
-const afkUsers = new Map();
 const WINNER_ROLE_ID = "1445571202050424933";
 const ANNOUNCE_CHANNEL_ID = "1381653080885694597"; // dikkat: eğer farklı -> düzelt
 const LEADERBOARD_CHANNEL_ID = "1448662725738627173";  // sabit leaderboard kanalı
@@ -160,6 +159,24 @@ client.on("guildMemberAdd", async (member) => {
 // Message commands
 client.on("messageCreate", async (message) => {
   try {
+	// --------------------
+// AFK'dan otomatik çık
+// --------------------
+if (!message.author.bot) {
+  const afk = getAFK(message.author.id);
+  if (afk) {
+    removeAFK(message.author.id);
+
+    try {
+      await message.member.setNickname(afk.oldNick);
+    } catch {}
+
+    message.reply("AFK modundan çıktın 👋")
+      .then(m => setTimeout(() => m.delete().catch(()=>{}), 5000))
+      .catch(()=>{});
+  }
+}
+  
     if (message.author.bot) return;
     if (!message.content.startsWith(PREFIX)) return;
     // ensure profiles loaded (cheap no-op if already loaded)
@@ -176,83 +193,47 @@ client.on("messageCreate", async (message) => {
       return true;
     };
 
-  // -----------------------------------------
-  // .afk KOMUTU
-  // -----------------------------------------
-  if (cmd === "afk") {
-    const note = args.join(" ") || null;
-    const member = message.member;
+// --------------------
+// .afk
+// --------------------
+if (cmd === "afk") {
+  const note = args.join(" ").trim();
+  const member = message.member;
 
-    if (!member) return;
-
-    // Zaten AFK ise tekrar ekleme
-    if (!afkUsers.has(member.id)) {
-      afkUsers.set(member.id, {
-        note,
-        oldNick: member.nickname || member.user.username
-      });
-
-      // Nickname güncelle
-      const newNick = `**[AFK]** ${afkUsers.get(member.id).oldNick}`;
-      try {
-        await member.setNickname(newNick);
-      } catch {}
-
-      await message.reply({
-        content: note
-          ? `AFK moduna geçtin. 💤\nNot: **${note}**`
-          : `AFK moduna geçtin. 💤`,
-        allowedMentions: { repliedUser: false }
-      });
-    }
-
-    return;
+  if (isAFK(member.id)) {
+    return message.reply("Zaten AFK’sın knk 😄");
   }
 
-  // -----------------------------------------
-  // AFK'DEN ÇIKMA (mesaj atınca)
-  // -----------------------------------------
-  if (afkUsers.has(message.author.id)) {
-    const data = afkUsers.get(message.author.id);
-    afkUsers.delete(message.author.id);
+  const oldNick = member.nickname || member.user.username;
 
-    try {
-      await message.member.setNickname(data.oldNick);
-    } catch {}
+  try {
+    await member.setNickname(`**[AFK]** ${oldNick}`);
+  } catch {}
 
-    const msg = await message.reply({
-      content: `AFK modundan çıktın, hoş geldin 👋`,
-      allowedMentions: { repliedUser: false }
-    });
+  setAFK(member.id, note, oldNick);
 
-    setTimeout(() => msg.delete().catch(() => {}), 5000);
-  }
+  return message.reply(
+    note
+      ? `AFK moduna geçtin — not: **${note}**`
+      : "AFK moduna geçtin."
+  );
+}
 
-  // -----------------------------------------
-  // AFK KİŞİ ETİKETLENİRSE / REPLY ATILIRSA
-  // -----------------------------------------
-  const mentioned =
-    message.mentions.users.first() ||
-    (message.reference
-      ? await message.channel.messages
-          .fetch(message.reference.messageId)
-          .then(m => m.author)
-          .catch(() => null)
-      : null);
+// --------------------
+// AFK mention uyarısı
+// --------------------
+for (const user of message.mentions.users.values()) {
+  const afk = getAFK(user.id);
+  if (!afk) continue;
 
-  if (mentioned && afkUsers.has(mentioned.id)) {
-    const afkData = afkUsers.get(mentioned.id);
+  const txt = afk.note
+    ? `**${user.username}** şu an AFK — not: *${afk.note}*`
+    : `**${user.username}** şu an AFK`;
 
-    const warn = await message.reply({
-      content: afkData.note
-        ? `🚫 **${mentioned.username}** şu an AFK.\n📝 Not: **${afkData.note}**`
-        : `🚫 **${mentioned.username}** şu an AFK.`,
-      allowedMentions: { repliedUser: false }
-    });
-
-    setTimeout(() => warn.delete().catch(() => {}), 5000);
-  }
-});
+  message.channel.send(txt)
+    .then(m => setTimeout(() => m.delete().catch(()=>{}), 5000))
+    .catch(()=>{});
+}
 
     // .setaboutme
     if (cmd === "setaboutme") {
@@ -716,3 +697,4 @@ setTimeout(async () => {
 });
 
 client.login(process.env.TOKEN);
+
