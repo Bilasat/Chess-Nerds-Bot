@@ -176,13 +176,6 @@ client.on("messageCreate", async (message) => {
       return true;
     };
 
-client.on("messageCreate", async (message) => {
-  if (message.author.bot || !message.guild) return;
-
-  const prefix = ".";
-  const args = message.content.trim().split(" ");
-  const command = args.shift()?.toLowerCase();
-
   // -----------------------------------------
   // .afk KOMUTU
   // -----------------------------------------
