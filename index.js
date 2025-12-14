@@ -18,8 +18,6 @@ import {
   setAboutMe
 } from "./profileDB.js";
 
-import { isAFK, setAFK, removeAFK, getAFK } from "./afkDB.js";
-
 dotenv.config();
 
 const PREFIX = ".";
@@ -161,24 +159,6 @@ client.on("guildMemberAdd", async (member) => {
 // Message commands
 client.on("messageCreate", async (message) => {
   try {
-	// --------------------
-// AFK'dan otomatik çık
-// --------------------
-if (!message.author.bot) {
-  const afk = getAFK(message.author.id);
-  if (afk) {
-    removeAFK(message.author.id);
-
-    try {
-      await message.member.setNickname(afk.oldNick);
-    } catch {}
-
-    message.reply("AFK modundan çıktın 👋")
-      .then(m => setTimeout(() => m.delete().catch(()=>{}), 5000))
-      .catch(()=>{});
-  }
-}
-  
     if (message.author.bot) return;
     if (!message.content.startsWith(PREFIX)) return;
     // ensure profiles loaded (cheap no-op if already loaded)
@@ -194,48 +174,6 @@ if (!message.author.bot) {
       if (!isAdmin) { message.reply("Bu komutu kullanmak için gerekli izinlere sahip değilsin."); return false; }
       return true;
     };
-
-// --------------------
-// .afk
-// --------------------
-if (cmd === "afk") {
-  const note = args.join(" ").trim();
-  const member = message.member;
-
-  if (isAFK(member.id)) {
-    return message.reply("Zaten AFK’sın knk 😄");
-  }
-
-  const oldNick = member.nickname || member.user.username;
-
-  try {
-    await member.setNickname(`**[AFK]** ${oldNick}`);
-  } catch {}
-
-  setAFK(member.id, note, oldNick);
-
-  return message.reply(
-    note
-      ? `AFK moduna geçtin — not: **${note}**`
-      : "AFK moduna geçtin."
-  );
-}
-
-// --------------------
-// AFK mention uyarısı
-// --------------------
-for (const user of message.mentions.users.values()) {
-  const afk = getAFK(user.id);
-  if (!afk) continue;
-
-  const txt = afk.note
-    ? `**${user.username}** şu an AFK — not: *${afk.note}*`
-    : `**${user.username}** şu an AFK`;
-
-  message.channel.send(txt)
-    .then(m => setTimeout(() => m.delete().catch(()=>{}), 5000))
-    .catch(()=>{});
-}
 
     // .setaboutme
     if (cmd === "setaboutme") {
@@ -699,4 +637,3 @@ setTimeout(async () => {
 });
 
 client.login(process.env.TOKEN);
-
