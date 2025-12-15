@@ -18,6 +18,13 @@ import {
   setAboutMe
 } from "./profileDB.js";
 
+import {
+  loadAfkAsync,
+  getAfk,
+  setAfk,
+  removeAfk
+} from "./afkDB.js";
+
 dotenv.config();
 
 const PREFIX = ".";
@@ -160,6 +167,65 @@ client.on("guildMemberAdd", async (member) => {
 client.on("messageCreate", async (message) => {
   try {
     if (message.author.bot) return;
+	await loadAfkAsync();
+const member = message.member;
+if (!member) return;
+
+/* AFK'den çıkma */
+const selfAfk = getAfk(member.id);
+if (selfAfk) {
+  const fixedNick = member.displayName.replace("**[AFK]** ", "");
+  await member.setNickname(fixedNick).catch(()=>{});
+
+  removeAfk(member.id);
+
+  const embed = new EmbedBuilder()
+    .setColor(0x00ff00)
+    .setTitle("AFK Modu Kapandı")
+    .setDescription("Tekrar hoş geldin 👋")
+    .setTimestamp();
+
+  const msg = await message.channel.send({ embeds: [embed] });
+  setTimeout(() => msg.delete().catch(()=>{}), 3000);
+}
+
+/* Etiket / reply AFK kontrolü */
+const targets = new Set();
+
+message.mentions.users.forEach(u => targets.add(u.id));
+
+if (message.reference?.messageId) {
+  const ref = await message.channel.messages
+    .fetch(message.reference.messageId)
+    .catch(()=>null);
+  if (ref) targets.add(ref.author.id);
+}
+
+for (const userId of targets) {
+  const afk = getAfk(userId);
+  if (!afk) continue;
+
+  const diff = Date.now() - afk.since;
+  const mins = Math.floor(diff / 60000);
+  const hrs = Math.floor(mins / 60);
+  const timeText =
+    hrs > 0 ? `${hrs} saat ${mins % 60} dk` : `${mins} dk`;
+
+  const embed = new EmbedBuilder()
+    .setColor(0xff0000)
+    .setTitle("Kullanıcı AFK")
+    .setDescription(
+      `<@${userId}> şu an AFK.\n` +
+      `⏱️ **Süre:** ${timeText}` +
+      `${afk.note ? `\n📝 **Not:** ${afk.note}` : ""}`
+    )
+    .setTimestamp();
+
+  const msg = await message.channel.send({ embeds: [embed] });
+  setTimeout(() => msg.delete().catch(()=>{}), 5000);
+  break;
+}
+
     if (!message.content.startsWith(PREFIX)) return;
     // ensure profiles loaded (cheap no-op if already loaded)
     try { await loadProfilesAsync(); } catch (e) {}
@@ -191,6 +257,37 @@ client.on("messageCreate", async (message) => {
       await saveProfiles().catch(()=>{});
       return message.reply("Hakkında kısmın kaldırıldı.");
     }
+
+	// .afk
+if (cmd === "afk") {
+  const note = args.join(" ") || null;
+  const member = message.member;
+  if (!member) return;
+
+  await loadAfkAsync();
+
+  // nick ayarla
+  if (!member.displayName.startsWith("**[AFK]**")) {
+    await member.setNickname(`**[AFK]** ${member.displayName}`).catch(()=>{});
+  }
+
+  setAfk(member.id, {
+    note,
+    since: Date.now()
+  });
+
+  const embed = new EmbedBuilder()
+    .setColor(0xffaa00)
+    .setTitle("AFK Modu Aktif")
+    .setDescription(
+      `Artık AFK'sın.${note ? `\n📝 **Not:** ${note}` : ""}`
+    )
+    .setTimestamp();
+
+  const msg = await message.channel.send({ embeds: [embed] });
+  setTimeout(() => msg.delete().catch(()=>{}), 3000);
+  return;
+}
 
     // .profile
     if (cmd === "profile") {
