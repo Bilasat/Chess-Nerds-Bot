@@ -18,6 +18,13 @@ import {
   setAboutMe
 } from "./profileDB.js";
 
+import {
+  loadAfkAsync,
+  getAfk,
+  setAfk,
+  removeAfk
+} from "./afkDB.js";
+
 dotenv.config();
 
 const PREFIX = ".";
@@ -102,6 +109,11 @@ client.once("ready", async () => {
   } catch (e) {
     console.error("loadProfilesAsync error on ready:", e);
   }
+    try {
+    await loadAfkAsync();
+  } catch (e) {
+    console.error("AFK DB yüklenemedi:", e);
+  }
 
   // register slash commands light
   try {
@@ -160,6 +172,71 @@ client.on("guildMemberAdd", async (member) => {
 client.on("messageCreate", async (message) => {
   try {
     if (message.author.bot) return;
+	// ---------------- AFK SİSTEMİ ----------------
+const member = message.member;
+if (!member) return;
+
+/* AFK'den çıkma */
+const selfAfk = getAfk(member.id);
+if (selfAfk) {
+  const fixedNick = member.displayName.replace(/^\[AFK\]\s*/i, "");
+  await member.setNickname(fixedNick).catch(()=>{});
+
+  removeAfk(member.id);
+
+  const embed = new EmbedBuilder()
+    .setColor(0x00ff00)
+    .setTitle("AFK Modu Kapandı")
+    .setDescription("Tekrar hoş geldin 👋")
+    .setTimestamp();
+
+  const m = await message.channel.send({ embeds: [embed] }).catch(()=>null);
+  if (m) setTimeout(() => m.delete().catch(()=>{}), 3000);
+}
+
+/* Etiket / reply AFK kontrolü */
+const targets = new Set();
+
+// mention
+message.mentions.users.forEach(u => {
+  if (!u.bot) targets.add(u.id);
+});
+
+// reply
+if (message.reference?.messageId) {
+  const ref = await message.channel.messages
+    .fetch(message.reference.messageId)
+    .catch(()=>null);
+  if (ref && !ref.author.bot) targets.add(ref.author.id);
+}
+
+for (const userId of targets) {
+  const afk = getAfk(userId);
+  if (!afk) continue;
+
+  const diff = Date.now() - afk.since;
+  const mins = Math.floor(diff / 60000);
+  const hrs = Math.floor(mins / 60);
+  const timeText =
+    hrs > 0 ? `${hrs} saat ${mins % 60} dk` : `${mins} dk`;
+
+  const embed = new EmbedBuilder()
+    .setColor(0xff0000)
+    .setTitle("Kullanıcı AFK")
+    .setDescription(
+      `<@${userId}> şu an AFK.\n` +
+      `⏱️ **Süre:** ${timeText}` +
+      `${afk.note ? `\n📝 **Not:** ${afk.note}` : ""}`
+    )
+    .setTimestamp();
+
+  // ⚠️ NOTLARINA UYGUN:
+  // - BU mesaj SİLİNMEZ
+  await message.channel.send({ embeds: [embed] }).catch(()=>{});
+  break; // spam engel
+}
+// ------------------------------------------------
+
     if (!message.content.startsWith(PREFIX)) return;
     // ensure profiles loaded (cheap no-op if already loaded)
     try { await loadProfilesAsync(); } catch (e) {}
@@ -174,6 +251,43 @@ client.on("messageCreate", async (message) => {
       if (!isAdmin) { message.reply("Bu komutu kullanmak için gerekli izinlere sahip değilsin."); return false; }
       return true;
     };
+
+// .afk
+if (cmd === "afk") {
+  const note = args.join(" ").trim() || null;
+
+  // zaten AFK mı?
+  if (getAfk(message.author.id)) {
+    return message.reply("Zaten AFK durumdasın.");
+  }
+
+  // nick ayarla
+  const baseNick = message.member.nickname ?? message.author.username;
+  const afkNick = baseNick.startsWith("[AFK]")
+    ? baseNick
+    : `[AFK] ${baseNick}`;
+
+  await message.member.setNickname(afkNick).catch(()=>{});
+
+  setAfk(message.author.id, {
+    since: Date.now(),
+    note
+  });
+
+  const embed = new EmbedBuilder()
+    .setColor(0xffa500)
+    .setTitle("AFK Modu Açıldı")
+    .setDescription(
+      `Artık AFK’sın.` +
+      `${note ? `\n📝 **Not:** ${note}` : ""}`
+    )
+    .setTimestamp();
+
+  // ⚠️ SENİN NOTUNA UYGUN:
+  // AFKSİN mesajı SİLİNMEZ
+  return message.channel.send({ embeds: [embed] });
+}
+
 
     // .setaboutme
     if (cmd === "setaboutme") {
