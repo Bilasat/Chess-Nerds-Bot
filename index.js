@@ -18,13 +18,6 @@ import {
   setAboutMe
 } from "./profileDB.js";
 
-import {
-  loadAfkAsync,
-  getAfk,
-  setAfk,
-  removeAfk
-} from "./afkDB.js";
-
 dotenv.config();
 
 const PREFIX = ".";
@@ -167,82 +160,6 @@ client.on("guildMemberAdd", async (member) => {
 client.on("messageCreate", async (message) => {
   try {
     if (message.author.bot) return;
-	await loadAfkAsync();
-const member = message.member;
-if (!member) return;
-
-await loadAfkAsync();
-
-  /* =========================
-     1️⃣ AFK'DEN ÇIKMA
-     ========================= */
-  const selfAfk = getAfk(member.id);
-  if (selfAfk) {
-    const baseNick = member.nickname ?? member.user.username;
-    const fixedNick = baseNick.replace(/^𝐀𝐅𝐊\s*/, "");
-
-    await member.setNickname(fixedNick)
-      .catch(err => console.error("AFK RESET NICK ERROR:", err));
-
-    removeAfk(member.id);
-
-    const embed = new EmbedBuilder()
-      .setColor(0x00ff00)
-      .setTitle("AFK Modu Kapandı")
-      .setDescription("Tekrar hoş geldin 👋")
-      .setTimestamp();
-
-    await message.channel.send({ embeds: [embed] });
-    return; // 🔴 SPAM'İ BURADA KESİYORUZ
-  }
-
-  /* =========================
-     2️⃣ MENTION / REPLY AFK
-     ========================= */
-  const targets = new Set();
-
-  message.mentions.users.forEach(u => targets.add(u.id));
-
-  if (message.reference?.messageId) {
-    const ref =
-      message.channel.messages.cache.get(message.reference.messageId)
-      || await message.channel.messages.fetch(message.reference.messageId)
-        .catch(() => null);
-
-    if (ref) targets.add(ref.author.id);
-  }
-
-  for (const userId of targets) {
-    const afk = getAfk(userId);
-    if (!afk) continue;
-
-    const diff = Date.now() - afk.since;
-    const secs = Math.floor(diff / 1000);
-    const mins = Math.floor(secs / 60);
-    const hrs = Math.floor(mins / 60);
-
-    const timeText =
-      hrs > 0
-        ? `${hrs} saat ${mins % 60} dk`
-        : mins > 0
-        ? `${mins} dk`
-        : `${secs} sn`;
-
-    const embed = new EmbedBuilder()
-      .setColor(0xff0000)
-      .setTitle("Kullanıcı AFK")
-      .setDescription(
-        `<@${userId}> şu an AFK.\n` +
-        `⏱️ **Süre:** ${timeText}` +
-        `${afk.note ? `\n📝 **Not:** ${afk.note}` : ""}`
-      )
-      .setTimestamp();
-
-    await message.channel.send({ embeds: [embed] });
-    break; // 🔴 aynı mesajda sadece 1 AFK uyarısı
-  }
-});
-
     if (!message.content.startsWith(PREFIX)) return;
     // ensure profiles loaded (cheap no-op if already loaded)
     try { await loadProfilesAsync(); } catch (e) {}
@@ -274,42 +191,6 @@ await loadAfkAsync();
       await saveProfiles().catch(()=>{});
       return message.reply("Hakkında kısmın kaldırıldı.");
     }
-
-// .afk komutu
-if (cmd === "afk") {
-  if (!message.guild) return;
-
-  const member = message.member;
-  if (!member) return;
-
-  const note = args.join(" ") || null;
-
-  await loadAfkAsync();
-
-  // zaten AFK ise tekrar işlem yapma
-  if (getAfk(member.id)) return;
-
-  const baseNick = member.nickname ?? member.user.username;
-
-  await member.setNickname(`𝐀𝐅𝐊 ${baseNick}`)
-    .catch(err => console.error("AFK SET NICK ERROR:", err));
-
-  setAfk(member.id, {
-    note,
-    since: Date.now()
-  });
-
-  const embed = new EmbedBuilder()
-    .setColor(0xffaa00)
-    .setTitle("AFK Modu Aktif")
-    .setDescription(
-      `Artık AFK'sın.${note ? `\n📝 **Not:** ${note}` : ""}`
-    )
-    .setTimestamp();
-
-  await message.channel.send({ embeds: [embed] });
-  return;
-}
 
     // .profile
     if (cmd === "profile") {
