@@ -174,8 +174,11 @@ if (!member) return;
 /* AFK'den çıkma */
 const selfAfk = getAfk(member.id);
 if (selfAfk) {
-  const fixedNick = member.displayName.replace("[AFK] ", "");
-  await member.setNickname(fixedNick).catch(()=>{});
+  const baseNick = member.nickname ?? member.user.username;
+  const fixedNick = baseNick.replace(/^(\[AFK\]|𝐀𝐅𝐊)\s*/, "");
+
+  await member.setNickname(fixedNick)
+    .catch(err => console.error("AFK NICK RESET ERROR:", err));
 
   removeAfk(member.id);
 
@@ -187,7 +190,9 @@ if (selfAfk) {
 
   const msg = await message.channel.send({ embeds: [embed] });
   setTimeout(() => msg.delete().catch(()=>{}), 3000);
+  return;
 }
+
 
 /* Etiket / reply AFK kontrolü */
 const targets = new Set();
@@ -258,7 +263,7 @@ for (const userId of targets) {
       return message.reply("Hakkında kısmın kaldırıldı.");
     }
 
-	// .afk
+// .afk
 if (cmd === "afk") {
   const note = args.join(" ") || null;
   const member = message.member;
@@ -266,9 +271,10 @@ if (cmd === "afk") {
 
   await loadAfkAsync();
 
-  // nick ayarla
-  if (!member.displayName.startsWith("[AFK]")) {
-    await member.setNickname(`[AFK] ${member.displayName}`).catch(()=>{});
+  const baseNick = member.nickname ?? member.user.username;
+
+  if (!baseNick.startsWith("𝐀𝐅𝐊")) {
+    await member.setNickname(`𝐀𝐅𝐊 ${baseNick}`);
   }
 
   setAfk(member.id, {
@@ -284,7 +290,7 @@ if (cmd === "afk") {
     )
     .setTimestamp();
 
-  const msg = await message.channel.send({ embeds: [embed] });
+  await message.channel.send({ embeds: [embed] });
   return;
 }
 
