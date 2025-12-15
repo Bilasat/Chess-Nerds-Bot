@@ -174,7 +174,7 @@ if (!member) return;
 /* AFK'den çıkma */
 const selfAfk = getAfk(member.id);
 if (selfAfk) {
-  const fixedNick = member.displayName.replace("**[AFK]** ", "");
+  const fixedNick = member.displayName.replace("[AFK] ", "");
   await member.setNickname(fixedNick).catch(()=>{});
 
   removeAfk(member.id);
@@ -267,8 +267,8 @@ if (cmd === "afk") {
   await loadAfkAsync();
 
   // nick ayarla
-  if (!member.displayName.startsWith("**[AFK]**")) {
-    await member.setNickname(`**[AFK]** ${member.displayName}`).catch(()=>{});
+  if (!member.displayName.startsWith("[AFK]")) {
+    await member.setNickname(`[AFK] ${member.displayName}`).catch(()=>{});
   }
 
   setAfk(member.id, {
@@ -285,7 +285,6 @@ if (cmd === "afk") {
     .setTimestamp();
 
   const msg = await message.channel.send({ embeds: [embed] });
-  setTimeout(() => msg.delete().catch(()=>{}), 3000);
   return;
 }
 
