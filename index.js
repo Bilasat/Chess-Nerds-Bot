@@ -70,7 +70,7 @@ async function generateLeaderboardEmbed(guild) {
     .slice(0, 10);
 
   const embed = new EmbedBuilder()
-    .setTitle("🏆 Turnuva Leaderboard")
+    .setTitle("🏆 Tournament Leaderboard")
     .setColor(0xffd700)
     .setTimestamp()
     .setFooter({ text: new Date().toLocaleString() });
@@ -151,13 +151,15 @@ client.on("guildMemberAdd", async (member) => {
   try {
     getProfile(member.id); // ensures entry
     const embed = new EmbedBuilder()
-      .setTitle("Selam! 👋")
+      .setTitle("Hey! 👋")
       .setColor(0x00ff00)
       .setThumbnail(member.user.displayAvatarURL())
       .setDescription(
-        "Sunucuya hoş geldin! Burada turnuvalar, sohbetler ve satranç dolu eğlence seni bekliyor.\n\n" +
-        "**Lichess takımımız:**\nhttps://lichess.org/team/bedbot\n\n" +
-        "**Dilersen 'verify' kanalımıza lichess ve chesscom hesaplarını yazarak profilini özelleştirebilirsin :alien:**"
+        "Sunucuya hoş geldin! Burada turnuvalar, sohbetler ve satranç dolu eğlence seni bekliyor.\n" +
+		"(Welcome to our server! Here you'll find tournaments, conversations, and plenty of chess.)\n\n" +
+        "**Our Lichess Team:**\nhttps://lichess.org/team/bedbot\n\n" +
+        "**Dilersen 'verify' kanalımıza lichess ve chesscom hesaplarını yazarak profilini özelleştirebilirsin :alien:**\n" +
+		"(If you wish, you can customize your profile by adding your lichess and chesscom accounts to our 'verify' channel.)"
       )
       .setFooter({ text: new Date().toLocaleString() })
       .setTimestamp();
@@ -186,8 +188,8 @@ if (selfAfk) {
 
   const embed = new EmbedBuilder()
     .setColor(0x00ff00)
-    .setTitle("AFK Modu Kapandı")
-    .setDescription("Tekrar hoş geldin 👋")
+    .setTitle("AFK mode is off.")
+    .setDescription("Welcome back 👋")
     .setTimestamp();
 
   const m = await message.channel.send({ embeds: [embed] }).catch(()=>null);
@@ -222,11 +224,11 @@ for (const userId of targets) {
 
   const embed = new EmbedBuilder()
     .setColor(0xff0000)
-    .setTitle("Kullanıcı AFK")
+    .setTitle("User is AFK")
     .setDescription(
-      `<@${userId}> şu an AFK.\n` +
-      `⏱️ **Süre:** ${timeText}` +
-      `${afk.note ? `\n📝 **Not:** ${afk.note}` : ""}`
+      `<@${userId}> is AFK rn.\n` +
+      `⏱️ **Duration:** ${timeText}` +
+      `${afk.note ? `\n📝 **Note:** ${afk.note}` : ""}`
     )
     .setTimestamp();
 
@@ -248,7 +250,7 @@ for (const userId of targets) {
 
     const isAdmin = message.member.permissions.has(PermissionsBitField.Flags.Administrator);
     const requireAdmin = () => {
-      if (!isAdmin) { message.reply("Bu komutu kullanmak için gerekli izinlere sahip değilsin."); return false; }
+      if (!isAdmin) { message.reply("You do not have the necessary permissions to use this command."); return false; }
       return true;
     };
 
@@ -258,7 +260,7 @@ if (cmd === "afk") {
 
   // zaten AFK mı?
   if (getAfk(message.author.id)) {
-    return message.reply("Zaten AFK durumdasın.");
+    return message.reply("You're already AFK.");
   }
 
   // nick ayarla
@@ -276,7 +278,7 @@ if (cmd === "afk") {
 
   const embed = new EmbedBuilder()
     .setColor(0xffa500)
-    .setTitle("AFK Modu Açıldı")
+    .setTitle("AFK Mode is On")
     .setDescription(
       `Artık AFK’sın.` +
       `${note ? `\n📝 **Not:** ${note}` : ""}`
@@ -292,10 +294,10 @@ if (cmd === "afk") {
     // .setaboutme
     if (cmd === "setaboutme") {
       const text = args.join(" ").trim();
-      if (!text) return message.reply("Bir şeyler yazman lazım.");
-      if (text.length > 256) return message.reply("Hakkında metni 256 karakterden uzun olamaz.");
+      if (!text) return message.reply("You should write something.");
+      if (text.length > 256) return message.reply("The 'About Me' section cannot be longer than 256 characters.");
       setAboutMe(message.author.id, text);
-      return message.reply("Hakkında kısmın güncellendi!");
+      return message.reply("The 'About Me' section has been updated!");
     }
 
     // .removeaboutme
@@ -303,7 +305,7 @@ if (cmd === "afk") {
       const profile = getProfile(message.author.id);
       profile.aboutMe = "";
       await saveProfiles().catch(()=>{});
-      return message.reply("Hakkında kısmın kaldırıldı.");
+      return message.reply("The 'About Me' section has been removed.");
     }
 
     // .profile
@@ -349,11 +351,11 @@ if (cmd === "afk") {
           : 0;
 
       embed.addFields(
-        { name: "📅 Sunucuya Katılım", value: member ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:D>` : "Bilinmiyor", inline: false },
+        { name: "📅 Join Date", value: member ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:D>` : "Bilinmiyor", inline: false },
         { name: "Lichess", value: profile.lichess && profile.lichess.username ? `Kullanıcı: **${profile.lichess.username}**\nBullet: ${profile.lichess.bullet ?? "-"}\nBlitz: ${profile.lichess.blitz ?? "-"}\nRapid: ${profile.lichess.rapid ?? "-"}\nClassical: ${profile.lichess.classic ?? "-"}` : "-", inline: true },
         { name: "Chess.com", value: profile.chesscom && profile.chesscom.username ? `Kullanıcı: **${profile.chesscom.username}**\nBullet: ${profile.chesscom.bullet ?? "-"}\nBlitz: ${profile.chesscom.blitz ?? "-"}\nRapid: ${profile.chesscom.rapid ?? "-"}\nClassical: ${profile.chesscom.classic ?? "-"}` : "-", inline: true },
-        { name: "🏆 TOPLAM TURNUVA KAZANIMI", value: `**${totalWins}**`, inline: false },
-        { name: "🏆 Turnuva Kazanımları", value: profile.wins && Object.keys(profile.wins).length ? Object.entries(profile.wins).map(([k, v]) => `• ${k}: ${v}`).join("\n") : "-", inline: false }
+        { name: "🏆 TOTAL TOURNAMENT WINS", value: `**${totalWins}**`, inline: false },
+        { name: "🏆 Tournament Achievements", value: profile.wins && Object.keys(profile.wins).length ? Object.entries(profile.wins).map(([k, v]) => `• ${k}: ${v}`).join("\n") : "-", inline: false }
       );
 
       return message.channel.send({ embeds: [embed] });
