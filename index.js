@@ -29,7 +29,7 @@ dotenv.config();
 
 const PREFIX = ".";
 const WINNER_ROLE_ID = "1445571202050424933";
-const ANNOUNCE_CHANNEL_ID = "1381653080885694597"; // dikkat: eğer farklı -> düzelt
+const ANNOUNCE_CHANNEL_ID = "1381653146731942079"; // dikkat: eğer farklı -> düzelt
 const LEADERBOARD_CHANNEL_ID = "1448662725738627173";  // sabit leaderboard kanalı
 let   LEADERBOARD_MESSAGE_ID = "1448677383107514479"; // daha sonra kaydedilecek mesaj ID
 
@@ -280,7 +280,7 @@ if (cmd === "afk") {
     .setColor(0xffa500)
     .setTitle("AFK Mode is On")
     .setDescription(
-      `Artık AFK’sın.` +
+      `You're now AFK.` +
       `${note ? `\n📝 **Not:** ${note}` : ""}`
     )
     .setTimestamp();
@@ -453,11 +453,11 @@ if (cmd === "afk") {
         const announceChannel = await guild.channels.fetch(ANNOUNCE_CHANNEL_ID).catch(()=>null);
         if (announceChannel && announceChannel.isTextBased()) {
           const congrEmbed = new EmbedBuilder()
-            .setTitle("🎉 Tebrikler!")
-            .setDescription(`**${member.user.username}** adlı oyuncu **${category}** kategorisinde turnuva kazandı!`)
+            .setTitle("🎉 Congratulations!")
+            .setDescription(`Player **${member.user.username}** won the tournament in category **${category}**!`)
             .addFields(
-              { name: "Verilen Rol", value: role ? `<@&${role.id}>` : "Rol tanımlı değil", inline: true },
-              { name: "Kullanıcı", value: `${member.user.tag}`, inline: true }
+              { name: "Given Role", value: role ? `<@&${role.id}>` : "Rol tanımlı değil", inline: true },
+              { name: "User", value: `${member.user.tag}`, inline: true }
             )
             .setColor(0x00ff00)
             .setFooter({ text: new Date().toLocaleString() })
