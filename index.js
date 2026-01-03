@@ -718,39 +718,6 @@ client.on("interactionCreate", async (interaction) => {
 });
 
 // ----------------------------------------------------
-client.once("ready", () => {
-  console.log(`Bot aktif → ${client.user.tag}`);
-  client.application.commands.set([
-  {
-    name: "ping",
-    description: "Botun gecikmesini ölçer."
-  },
-  {
-    name: "send",
-    description: "Belirtilen kanala mesaj gönder"
-  }
-]);
-  // Sabit leaderboard mesajını oluştur veya güncelle
-setTimeout(async () => {
-  const channel = await client.channels.fetch(LEADERBOARD_CHANNEL_ID).catch(() => null);
-  if (!channel || !channel.isTextBased()) return;
 
-  const embed = await generateLeaderboardEmbed(channel.guild);
-
-  // Eğer daha önce mesaj kaydettiysek onu güncelleriz
-  if (LEADERBOARD_MESSAGE_ID) {
-    try {
-      const msg = await channel.messages.fetch(LEADERBOARD_MESSAGE_ID);
-      await msg.edit({ embeds: [embed] });
-      return;
-    } catch {}
-  }
-
-  // Yoksa yeni mesaj oluşturulur
-  const msg = await channel.send({ embeds: [embed] });
-  LEADERBOARD_MESSAGE_ID = msg.id;
-}, 2000);
-
-});
 
 client.login(process.env.TOKEN);
