@@ -10,7 +10,6 @@ import {
   TextInputStyle
 } from "discord.js";
 
-import dotenv from "dotenv";
 import {
   getProfile,
   loadProfilesAsync,
