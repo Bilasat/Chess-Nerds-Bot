@@ -24,7 +24,6 @@ import {
   removeAfk
 } from "./afkDB.js";
 
-dotenv.config();
 
 const PREFIX = ".";
 const WINNER_ROLE_ID = "1445571202050424933";
