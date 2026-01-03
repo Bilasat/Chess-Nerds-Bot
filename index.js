@@ -719,8 +719,4 @@ client.on("interactionCreate", async (interaction) => {
 
 // ----------------------------------------------------
 
-console.log("INDEX.JS ÇALIŞTI");
-
-client.login(process.env.TOKEN)
-  .then(() => console.log("DISCORD LOGIN OK"))
-  .catch(err => console.error("LOGIN ERROR:", err));
+client.login(process.env.TOKEN);
