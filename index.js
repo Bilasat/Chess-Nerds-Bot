@@ -717,4 +717,6 @@ client.on("interactionCreate", async (interaction) => {
 
 // ----------------------------------------------------
 
+console.log("TOKEN VAR MI:", Boolean(process.env.TOKEN));
+
 client.login(process.env.TOKEN);
