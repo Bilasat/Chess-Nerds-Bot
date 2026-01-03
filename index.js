@@ -717,4 +717,6 @@ client.on("interactionCreate", async (interaction) => {
 
 // ----------------------------------------------------
 
-await client.login(process.env.TOKEN);
+(async () => {
+  await client.login(process.env.TOKEN);
+})();
