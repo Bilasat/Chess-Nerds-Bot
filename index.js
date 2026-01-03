@@ -157,7 +157,8 @@ client.on("guildMemberAdd", async (member) => {
       .setDescription(        
 		"**Welcome to our server! Here you'll find tournaments, conversations, and plenty of chess.**\n" +
 		"(Sunucuya hoş geldin! Burada turnuvalar, sohbetler ve satranç dolu eğlence seni bekliyor.)\n\n" +
-        "**Our Lichess Team:**\nhttps://lichess.org/team/bedbot\n\n" +        
+        "**Our Lichess Team:**\nhttps://lichess.org/team/bedbot\n" +
+		"**Our ChessCom Team:**\nhttps://www.chess.com/club/bedbot\n\n" +	
 		"**If you wish, you can customize your profile by adding your lichess and chesscom accounts to our 'verify' channel.**\n" +
 		"(Dilersen 'verify' kanalımıza lichess ve chesscom hesaplarını yazarak profilini özelleştirebilirsin :alien:)" 
       )
