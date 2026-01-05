@@ -7,21 +7,31 @@ import { Buffer } from "buffer";
 // -------------------------------------------------------
 const LOCAL_DB = path.join(process.cwd(), "afk.json");
 
-const GITHUB_TOKEN = process.env.GH_TOKEN || null;
-const GITHUB_OWNER = process.env.GH_USER || "Bilasat";
-const GITHUB_REPO = process.env.GH_REPO || "Chess-Nerds-Bot-Database";
-const GITHUB_BRANCH = process.env.GH_BRANCH || "main";
+function getGitHubConfig() {
+  return {
+    token: process.env.GH_TOKEN || null,
+    owner: process.env.GH_USER || "Bilasat",
+    repo: process.env.GH_REPO || "Chess-Nerds-Bot-Database",
+    branch: process.env.GH_BRANCH || "main",
+  };
+}
+
 const REMOTE_PATH = "afk.json";
 
 // -------------------------------------------------------
 // Helper: GitHub Fetch
 // -------------------------------------------------------
 async function ghFetch(url, opts = {}) {
+  const { token } = getGitHubConfig();
+
   const headers = {
     "User-Agent": "chess-nerds-bot",
     Accept: "application/vnd.github.v3+json",
   };
-  if (GITHUB_TOKEN) headers.Authorization = `Bearer ${GITHUB_TOKEN}`;
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
   return fetch(url, {
     ...opts,
@@ -29,15 +39,18 @@ async function ghFetch(url, opts = {}) {
   });
 }
 
+
 // -------------------------------------------------------
 // GitHub GET
 // -------------------------------------------------------
 async function githubGetFile() {
-  if (!GITHUB_TOKEN) return null;
+  const { token, owner, repo, branch } = getGitHubConfig();
+if (!token) return null;
 
-  const url =
-    `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}` +
-    `/contents/${REMOTE_PATH}?ref=${GITHUB_BRANCH}`;
+const url =
+  `https://api.github.com/repos/${owner}/${repo}` +
+  `/contents/${REMOTE_PATH}?ref=${branch}`;
+
 
   try {
     const res = await ghFetch(url);
@@ -66,18 +79,21 @@ async function githubGetFile() {
 // GitHub PUT
 // -------------------------------------------------------
 async function githubPutFile({ message, content, sha }) {
-  if (!GITHUB_TOKEN) return false;
+  const { token, owner, repo, branch } = getGitHubConfig();
+if (!token) return false;
+
 
   const url =
-    `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}` +
-    `/contents/${REMOTE_PATH}`;
+  `https://api.github.com/repos/${owner}/${repo}` +
+  `/contents/${REMOTE_PATH}`;
 
-  const body = {
-    message,
-    content: Buffer.from(content, "utf8").toString("base64"),
-    branch: GITHUB_BRANCH,
-    sha,
-  };
+const body = {
+  message,
+  content: Buffer.from(content, "utf8").toString("base64"),
+  branch,
+  sha,
+};
+
 
   try {
     const res = await ghFetch(url, {
@@ -202,3 +218,6 @@ export function removeAfk(userId) {
 }
 
 export { loadAfk as loadAfkAsync };
+
+
+

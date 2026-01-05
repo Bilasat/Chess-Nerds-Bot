@@ -1,4 +1,7 @@
 // index.js — async-aware final sürüm
+import dotenv from "dotenv";
+dotenv.config();
+
 import { Client, GatewayIntentBits, EmbedBuilder, Partials, PermissionsBitField } from "discord.js";
 import {
   ActionRowBuilder,
@@ -23,7 +26,6 @@ import {
   setAfk,
   removeAfk
 } from "./afkDB.js";
-
 
 const PREFIX = ".";
 const WINNER_ROLE_ID = "1445571202050424933";
@@ -99,7 +101,7 @@ async function generateLeaderboardEmbed(guild) {
 
 // ----------------------------------------------------
 // Ready: ensure DB loaded once, create/update leaderboard message
-client.once("ready", async () => {
+client.once("clientReady", async () => {
   console.log(`Bot aktif → ${client.user.tag}`);
   // ensure profiles loaded into RAM (so getProfile calls are safe)
   try {
@@ -717,6 +719,5 @@ client.on("interactionCreate", async (interaction) => {
 
 // ----------------------------------------------------
 
-(async () => {
-  await client.login(process.env.TOKEN);
-})();
+client.login(process.env.TOKEN);
+
