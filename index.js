@@ -27,6 +27,8 @@ import {
   removeAfk
 } from "./afkDB.js";
 
+const AFK_REACTION = "<:w_check:1447598180463280291>"; 
+
 const PREFIX = ".";
 const WINNER_ROLE_ID = "1445571202050424933";
 const ANNOUNCE_CHANNEL_ID = "1381653146731942079"; // dikkat: eğer farklı -> düzelt
@@ -182,8 +184,14 @@ if (!member) return;
 /* AFK'den çıkma */
 const selfAfk = getAfk(member.id);
 if (selfAfk) {
-  const fixedNick = member.displayName.replace(/^\[AFK\]\s*/i, "");
-  await member.setNickname(fixedNick).catch(()=>{});
+
+  const oldNick = selfAfk.oldNick;
+
+  if (oldNick === null || oldNick === undefined) {
+    await member.setNickname(null).catch(()=>{});
+  } else {
+    await member.setNickname(oldNick).catch(()=>{});
+  }
 
   removeAfk(member.id);
 
@@ -196,6 +204,7 @@ if (selfAfk) {
   const m = await message.channel.send({ embeds: [embed] }).catch(()=>null);
   if (m) setTimeout(() => m.delete().catch(()=>{}), 3000);
 }
+
 
 /* Etiket / reply AFK kontrolü */
 const targets = new Set();
@@ -265,7 +274,8 @@ if (cmd === "afk") {
   }
 
   // nick ayarla
-  const baseNick = message.member.nickname ?? message.author.username;
+  const oldNick = message.member.nickname; // null olabilir
+  const baseNick = message.member.displayName;
   const afkNick = baseNick.startsWith("[AFK]")
     ? baseNick
     : `[AFK] ${baseNick}`;
@@ -274,10 +284,11 @@ if (cmd === "afk") {
 
   setAfk(message.author.id, {
     since: Date.now(),
-    note
+    note,
+	oldNick
   });
-
-  const embed = new EmbedBuilder()
+  
+const embed = new EmbedBuilder()
     .setColor(0xffa500)
     .setTitle("AFK Mode is On")
     .setDescription(
@@ -285,6 +296,7 @@ if (cmd === "afk") {
       `${note ? `\n📝 **Not:** ${note}` : ""}`
     )
     .setTimestamp();
+  message.react(AFK_REACTION).catch(() => {});
 
   // ⚠️ SENİN NOTUNA UYGUN:
   // AFKSİN mesajı SİLİNMEZ
