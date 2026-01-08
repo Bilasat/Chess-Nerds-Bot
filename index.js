@@ -69,7 +69,7 @@ async function generateLeaderboardEmbed(guild) {
       wins: data.wins || {}
     }))
     .sort((a, b) => b.total - a.total)
-    .slice(0, 10);
+    .slice(0, 5);
 
   const embed = new EmbedBuilder()
     .setTitle("🏆 Tournament Leaderboard")
@@ -79,7 +79,7 @@ async function generateLeaderboardEmbed(guild) {
 
   let desc = "";
 
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 5; i++) {
     const userData = arr[i];
     if (!userData) { desc += `**${i + 1}.** -\n`; continue; }
 
@@ -157,13 +157,11 @@ client.on("guildMemberAdd", async (member) => {
       .setColor(0x00ff00)
       .setThumbnail(member.user.displayAvatarURL())
       .setDescription(        
-		"**Welcome to our server! Here you'll find tournaments, conversations, and plenty of chess.**\n" +
-		"(Sunucuya hoş geldin! Burada turnuvalar, sohbetler ve satranç dolu eğlence seni bekliyor.)\n\n" +
+		"Welcome to our server! Here you'll find tournaments, conversations, and plenty of chess <:chess_brilliant_move:1447598008702210151>\n\n" +
         "**Our Lichess Team:**\nhttps://lichess.org/team/bedbot\n" +
 		"**Our ChessCom Team:**\nhttps://www.chess.com/club/bedbot\n\n" +	
-		"**If you wish, you can customize your profile by adding your lichess and chesscom accounts to our 'verify' channel.**\n" +
-		"(Dilersen 'verify' kanalımıza lichess ve chesscom hesaplarını yazarak profilini özelleştirebilirsin :alien:)" 
-      )
+		"If you wish, you can customize your profile by adding your lichess and chesscom accounts to our 'verify' channel :alien:\n"
+		)
       .setFooter({ text: new Date().toLocaleString() })
       .setTimestamp();
     await member.send({ embeds: [embed] }).catch(()=>{});
@@ -542,7 +540,7 @@ const embed = new EmbedBuilder()
       const arr = Object.entries(profiles)
         .map(([id, data]) => ({ id, total: data.wins ? Object.values(data.wins).reduce((a,b)=>a+b,0) : 0, wins: data.wins || {} }))
         .sort((a,b) => b.total - a.total)
-        .slice(0,10);
+        .slice(0,5);
 
       const embed = new EmbedBuilder()
         .setTitle("🏆 Tournament Leaderboard")
