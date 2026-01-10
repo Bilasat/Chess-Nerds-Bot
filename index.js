@@ -27,6 +27,47 @@ import {
   removeAfk
 } from "./afkDB.js";
 
+const afkExitLock = new Set();
+
+async function handleAfkExit(message) {
+  const member = message.member;
+  if (!member) return false;
+
+  // 🔒 global kilit
+  if (afkExitLock.has(member.id)) return false;
+
+  const afk = getAfk(member.id);
+  if (!afk) return false;
+
+  // .afk komutu bu fonksiyonu çağırmasın
+  if (message.content?.startsWith(".afk")) return false;
+
+  afkExitLock.add(member.id);
+
+  // ⚠️ EN ÖNEMLİ SATIR
+  removeAfk(member.id);
+
+  const oldNick = afk.oldNick;
+  if (oldNick == null) {
+    await member.setNickname(null).catch(() => {});
+  } else {
+    await member.setNickname(oldNick).catch(() => {});
+  }
+
+  const embed = new EmbedBuilder()
+    .setColor(0x00ff00)
+    .setTitle("AFK mode is off.")
+    .setDescription("Welcome back 👋")
+    .setTimestamp();
+
+  const m = await message.channel.send({ embeds: [embed] }).catch(() => null);
+  if (m) setTimeout(() => m.delete().catch(() => {}), 3000);
+
+  setTimeout(() => afkExitLock.delete(member.id), 1500);
+  return true;
+}
+
+
 const AFK_REACTION = "<:w_check:1447598180463280291>"; 
 
 const PREFIX = ".";
@@ -175,33 +216,13 @@ client.on("guildMemberAdd", async (member) => {
 client.on("messageCreate", async (message) => {
   try {
     if (message.author.bot) return;
+	const member = message.member;
+	if (!member) return;
+	
+await handleAfkExit(message);	
+
 	// ---------------- AFK SİSTEMİ ----------------
-const member = message.member;
 if (!member) return;
-
-/* AFK'den çıkma */
-const selfAfk = getAfk(member.id);
-if (selfAfk) {
-
-  const oldNick = selfAfk.oldNick;
-
-  if (oldNick === null || oldNick === undefined) {
-    await member.setNickname(null).catch(()=>{});
-  } else {
-    await member.setNickname(oldNick).catch(()=>{});
-  }
-
-  removeAfk(member.id);
-
-  const embed = new EmbedBuilder()
-    .setColor(0x00ff00)
-    .setTitle("AFK mode is off.")
-    .setDescription("Welcome back 👋")
-    .setTimestamp();
-
-  const m = await message.channel.send({ embeds: [embed] }).catch(()=>null);
-  if (m) setTimeout(() => m.delete().catch(()=>{}), 3000);
-}
 
 
 /* Etiket / reply AFK kontrolü */
