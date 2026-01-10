@@ -27,6 +27,16 @@ import {
   removeAfk
 } from "./afkDB.js";
 
+import fs from "fs";
+
+function loadConfig() {
+  return JSON.parse(fs.readFileSync("./config.json", "utf8"));
+}
+
+function saveConfig(config) {
+  fs.writeFileSync("./config.json", JSON.stringify(config, null, 2));
+}
+
 const afkExitLock = new Set();
 
 async function handleAfkExit(message) {
@@ -67,6 +77,13 @@ async function handleAfkExit(message) {
   return true;
 }
 
+const activityTypes = {
+  PLAYING: 0,
+  STREAMING: 1,
+  LISTENING: 2,
+  WATCHING: 3,
+  COMPETING: 5
+};
 
 const AFK_REACTION = "<:w_check:1447598180463280291>"; 
 
@@ -186,6 +203,22 @@ client.once("clientReady", async () => {
       console.error("Leaderboard init error:", e);
     }
   }, 2000);
+  
+  
+const config = loadConfig();
+const status = config.status;
+
+client.user.setPresence({
+  activities: [
+    {
+      name: status.text,
+      type: activityTypes[status.type] ?? 0
+    }
+  ],
+  status: status.presence ?? "online"
+});
+
+
 });
 
 // ----------------------------------------------------

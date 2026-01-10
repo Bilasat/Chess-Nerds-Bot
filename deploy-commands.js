@@ -10,8 +10,16 @@ const commandsPath = path.join(process.cwd(), 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
-  const command = (await import(`./commands/${file}`)).default;
-  commands.push(command.data.toJSON());
+  const imported = await import(`./commands/${file}`);
+  
+  // hem named export hem default export kontrolü
+  const command = imported.data ?? imported.default?.data;
+  if (!command) {
+    console.warn(`⚠️ ${file} içinde geçerli data export bulunamadı`);
+    continue;
+  }
+
+  commands.push(command.toJSON());
 }
 
 // Discord’a gönder
