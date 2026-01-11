@@ -36,32 +36,31 @@ function loadConfig() {
 function saveConfig(config) {
   fs.writeFileSync("./config.json", JSON.stringify(config, null, 2));
 }
-
-const afkExitLock = new Set();
+const afkExitInProgress = new Set();
 
 async function handleAfkExit(message) {
   const member = message.member;
   if (!member) return false;
 
-  // 🔒 global kilit
-  if (afkExitLock.has(member.id)) return false;
+  if (message.content?.startsWith(".afk")) return false;
+
+  // 🚨 SERT LOCK — await'ten ÖNCE
+  if (afkExitInProgress.has(member.id)) return false;
 
   const afk = getAfk(member.id);
   if (!afk) return false;
 
-  // .afk komutu bu fonksiyonu çağırmasın
-  if (message.content?.startsWith(".afk")) return false;
+  afkExitInProgress.add(member.id);
 
-  afkExitLock.add(member.id);
-
-  // ⚠️ EN ÖNEMLİ SATIR
+  // 🔥 AFK'yı ANINDA sil (sync)
   removeAfk(member.id);
 
+  // nick geri al
   const oldNick = afk.oldNick;
   if (oldNick == null) {
-    await member.setNickname(null).catch(() => {});
+    member.setNickname(null).catch(() => {});
   } else {
-    await member.setNickname(oldNick).catch(() => {});
+    member.setNickname(oldNick).catch(() => {});
   }
 
   const embed = new EmbedBuilder()
@@ -73,9 +72,14 @@ async function handleAfkExit(message) {
   const m = await message.channel.send({ embeds: [embed] }).catch(() => null);
   if (m) setTimeout(() => m.delete().catch(() => {}), 3000);
 
-  setTimeout(() => afkExitLock.delete(member.id), 1500);
+  // 🧹 lock temizliği
+  setTimeout(() => {
+    afkExitInProgress.delete(member.id);
+  }, 1500);
+
   return true;
 }
+
 
 const activityTypes = {
   PLAYING: 0,
@@ -251,8 +255,9 @@ client.on("messageCreate", async (message) => {
     if (message.author.bot) return;
 	const member = message.member;
 	if (!member) return;
-	
-await handleAfkExit(message);	
+let afkExitedThisMessage = false;	
+afkExitedThisMessage = await handleAfkExit(message);	// ⚠️ Bu noktadan sonra bu message AFK sayılmaz
+
 
 	// ---------------- AFK SİSTEMİ ----------------
 if (!member) return;
@@ -275,6 +280,9 @@ if (message.reference?.messageId) {
 }
 
 for (const userId of targets) {
+	
+  if (afkExitedThisMessage && userId === message.author.id) continue; // 🚫 bu message’ta AFK’dan çıkan kullanıcıyı YOK SAY	 
+  if (userId === message.author.id) continue;
   const afk = getAfk(userId);
   if (!afk) continue;
 
