@@ -47,13 +47,13 @@ async function handleAfkExit(message) {
   // 🚨 SERT LOCK — await'ten ÖNCE
   if (afkExitInProgress.has(member.id)) return false;
 
-  const afk = getAfk(member.id);
+  const afk = getAfk(message.guild.id, member.id);
   if (!afk) return false;
 
   afkExitInProgress.add(member.id);
 
   // 🔥 AFK'yı ANINDA sil (sync)
-  removeAfk(member.id);
+  removeAfk(message.guild.id, member.id);
 
   // nick geri al
   const oldNick = afk.oldNick;
@@ -79,7 +79,9 @@ async function handleAfkExit(message) {
 
   return true;
 }
-
+// AFK notify cooldown
+const afkNotifyCooldown = new Map();
+const AFK_NOTIFY_COOLDOWN_MS = 30_000; // 30 saniye
 
 const activityTypes = {
   PLAYING: 0,
@@ -156,7 +158,7 @@ async function generateLeaderboardEmbed(guild) {
       .map(([k, v]) => `• ${k}: ${v}`)
       .join("\n") || "-";
 
-    desc += `**${i + 1}. ${displayName}** — ${userData.total} win\n${categories}\n\n`;
+    desc += `**${i + 1}. ${displayName}** — ${userData.total} win(s)\n${categories}\n\n`;
   }
 
   embed.setDescription(desc.trim());
@@ -238,7 +240,7 @@ client.on("guildMemberAdd", async (member) => {
 		"Welcome to our server! Here you'll find tournaments, conversations, and plenty of chess <:chess_brilliant_move:1447598008702210151>\n\n" +
         "**Our Lichess Team:**\nhttps://lichess.org/team/bedbot\n" +
 		"**Our ChessCom Team:**\nhttps://www.chess.com/club/bedbot\n\n" +	
-		"If you wish, you can customize your profile by adding your lichess and chesscom accounts to our 'verify' channel :alien:\n"
+		"If you wish, you can customize your profile by adding your lichess and chesscom accounts to our <#1446777954091663571> channel :alien:\n"
 		)
       .setFooter({ text: new Date().toLocaleString() })
       .setTimestamp();
@@ -283,29 +285,33 @@ for (const userId of targets) {
 	
   if (afkExitedThisMessage && userId === message.author.id) continue; // 🚫 bu message’ta AFK’dan çıkan kullanıcıyı YOK SAY	 
   if (userId === message.author.id) continue;
-  const afk = getAfk(userId);
+  const afk = getAfk(message.guild.id, userId);
   if (!afk) continue;
+
+const key = `${message.guild.id}:${message.channel.id}:${userId}`;
+  const lastSent = afkNotifyCooldown.get(key);
+
+  if (lastSent && Date.now() - lastSent < AFK_NOTIFY_COOLDOWN_MS) {
+    continue; // ⛔ cooldown
+  }
+
+  afkNotifyCooldown.set(key, Date.now());
 
   const diff = Date.now() - afk.since;
   const mins = Math.floor(diff / 60000);
   const hrs = Math.floor(mins / 60);
   const timeText =
-    hrs > 0 ? `${hrs} saat ${mins % 60} dk` : `${mins} dk`;
+    hrs > 0 ? `${hrs} hr ${mins % 60} mins` : `${mins} mins`;
 
-  const embed = new EmbedBuilder()
-    .setColor(0xff0000)
-    .setTitle("User is AFK")
-    .setDescription(
-      `<@${userId}> is AFK rn.\n` +
-      `⏱️ **Duration:** ${timeText}` +
-      `${afk.note ? `\n📝 **Note:** ${afk.note}` : ""}`
-    )
-    .setTimestamp();
+  let text = `:zzz: User is **AFK**, for ${timeText}.`;
+  if (afk.note) {
+    text += ` Note: "${afk.note}"`;
+  }
 
-  // ⚠️ NOTLARINA UYGUN:
-  // - BU mesaj SİLİNMEZ
-  await message.channel.send({ embeds: [embed] }).catch(()=>{});
-  break; // spam engel
+  // 🔥 REPLY olarak gönder
+  await message.reply({ content: text }).catch(() => {});
+  break; // spam engeli
+
 }
 // ------------------------------------------------
 
@@ -342,7 +348,7 @@ if (cmd === "afk") {
 
   await message.member.setNickname(afkNick).catch(()=>{});
 
-  setAfk(message.author.id, {
+  setAfk(message.guild.id, message.author.id, {
     since: Date.now(),
     note,
 	oldNick

@@ -200,20 +200,27 @@ export async function saveAfk() {
 // -------------------------------------------------------
 // CORE FUNCTIONS
 // -------------------------------------------------------
-export function getAfk(userId) {
+export function getAfk(guildId, userId) {
   if (Object.keys(afkData).length === 0) afkData = localRead();
-  return afkData[userId] || null;
+  return afkData[guildId]?.[userId] || null;
 }
 
-export function setAfk(userId, data) {
-  afkData[userId] = data;
+export function setAfk(guildId, userId, data) {
+  if (!afkData[guildId]) afkData[guildId] = {};
+  afkData[guildId][userId] = data;
   saveAfk().catch(() => {});
-  return afkData[userId];
+  return afkData[guildId][userId];
 }
 
-export function removeAfk(userId) {
-  if (!afkData[userId]) return;
-  delete afkData[userId];
+
+export function removeAfk(guildId, userId) {
+  if (!afkData[guildId]?.[userId]) return;
+  delete afkData[guildId][userId];
+
+  if (Object.keys(afkData[guildId]).length === 0) {
+    delete afkData[guildId];
+  }
+
   saveAfk().catch(() => {});
 }
 
