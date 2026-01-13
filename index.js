@@ -5,9 +5,6 @@ dotenv.config();
 import { Client, GatewayIntentBits, EmbedBuilder, Partials, PermissionsBitField } from "discord.js";
 import {
   ActionRowBuilder,
-  ChannelSelectMenuBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle
@@ -644,158 +641,108 @@ client.on("interactionCreate", async (interaction) => {
   // -----------------------------------------
   // /send komutu (SADECE ADMIN)
   // -----------------------------------------
-  if (interaction.commandName === "send") {
+ if (interaction.commandName === "send") {
 
-    // ADMIN KONTROLÜ
-    if (!interaction.memberPermissions?.has("Administrator")) {
-      return interaction.reply({
-        content: "❌ Bu komutu sadece yöneticiler kullanabilir.",
-        ephemeral: true
-      });
-    }
-
-    const channelSelect = new ActionRowBuilder().addComponents(
-      new ChannelSelectMenuBuilder()
-        .setCustomId("send_select_channel")
-        .setPlaceholder("Mesaj göndermek için kanal seç")
-        .addChannelTypes(0) // 0 = GUILD_TEXT
-    );
-
-    await interaction.reply({
-      content: "Göndermek istediğin kanalı seç:",
-      components: [channelSelect],
-      ephemeral: true
+  if (!interaction.memberPermissions?.has("Administrator")) {
+    return interaction.reply({
+      content: "❌ Only admins can use this command.",
+      flags: 64
     });
   }
-});
-
-
-// -----------------------------------------
-// Kanal seçildikten sonra mesaj türü seçimi
-// -----------------------------------------
-client.on("interactionCreate", async (interaction) => {
-  if (!interaction.isChannelSelectMenu()) return;
-  if (interaction.customId !== "send_select_channel") return;
-
-  const selectedChannel = interaction.values[0];
-
-  const buttons = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`send_text_${selectedChannel}`)
-      .setLabel("Düz Metin")
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId(`send_embed_${selectedChannel}`)
-      .setLabel("Embed")
-      .setStyle(ButtonStyle.Success)
-  );
-
-  await interaction.update({
-    content: `Seçilen kanal: <#${selectedChannel}>\nGönderim türünü seç:`,
-    components: [buttons]
-  });
-});
-
-// -----------------------------------------
-// Düz metin gönderme
-// -----------------------------------------
-client.on("interactionCreate", async (interaction) => {
-  if (!interaction.isButton()) return;
-  if (!interaction.customId.startsWith("send_text_")) return;
-
-  const channelId = interaction.customId.replace("send_text_", "");
 
   const modal = new ModalBuilder()
-    .setCustomId(`send_text_modal_${channelId}`)
-    .setTitle("Düz Metin Gönder");
+    .setCustomId("send_modal")
+    .setTitle("Mesaj Gönder");
 
-  const input = new TextInputBuilder()
-    .setCustomId("send_text_content")
-    .setLabel("Gönderilecek mesaj")
-    .setStyle(TextInputStyle.Paragraph)
-    .setRequired(true);
-
-  modal.addComponents(new ActionRowBuilder().addComponents(input));
-
-  await interaction.showModal(modal);
-});
-
-// Modal sonucu
-client.on("interactionCreate", async (interaction) => {
-  if (!interaction.isModalSubmit()) return;
-  if (!interaction.customId.startsWith("send_text_modal_")) return;
-
-  const channelId = interaction.customId.replace("send_text_modal_", "");
-  const channel = await interaction.guild.channels.fetch(channelId);
-
-  const content = interaction.fields.getTextInputValue("send_text_content");
-
-  await channel.send(content);
-
-  await interaction.reply({
-    content: "Mesaj gönderildi!",
-    ephemeral: true
-  });
-});
-
-// -----------------------------------------
-// Embed gönderme
-// -----------------------------------------
-client.on("interactionCreate", async (interaction) => {
-  if (!interaction.isButton()) return;
-  if (!interaction.customId.startsWith("send_embed_")) return;
-
-  const channelId = interaction.customId.replace("send_embed_", "");
-
-  const modal = new ModalBuilder()
-    .setCustomId(`send_embed_modal_${channelId}`)
-    .setTitle("Embed Oluştur");
-
-  const title = new TextInputBuilder()
-    .setCustomId("embed_title")
-    .setLabel("Başlık")
+  const channelIdInput = new TextInputBuilder()
+    .setCustomId("send_channel_id")
+    .setLabel("Kanal ID")
     .setStyle(TextInputStyle.Short)
     .setRequired(true);
 
-  const desc = new TextInputBuilder()
-    .setCustomId("embed_description")
-    .setLabel("İçerik")
+  const messageIdsInput = new TextInputBuilder()
+    .setCustomId("send_message_ids")
+    .setLabel("Mesaj ID'leri (her satıra bir ID)")
     .setStyle(TextInputStyle.Paragraph)
-    .setRequired(true);
+    .setRequired(false);
+
+  const textInput = new TextInputBuilder()
+    .setCustomId("send_text")
+    .setLabel("Gönderilecek metin (opsiyonel)")
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(false);
 
   modal.addComponents(
-    new ActionRowBuilder().addComponents(title),
-    new ActionRowBuilder().addComponents(desc)
+    new ActionRowBuilder().addComponents(channelIdInput),
+    new ActionRowBuilder().addComponents(messageIdsInput),
+    new ActionRowBuilder().addComponents(textInput)
   );
 
   await interaction.showModal(modal);
+}
 });
+// MODAL SUBMIT HANDLER
 
-// Embed modal sonucu
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isModalSubmit()) return;
-  if (!interaction.customId.startsWith("send_embed_modal_")) return;
+  if (interaction.customId !== "send_modal") return;
 
-  const channelId = interaction.customId.replace("send_embed_modal_", "");
-  const channel = await interaction.guild.channels.fetch(channelId);
+  await interaction.deferReply({ flags: 64 });
 
-  const title = interaction.fields.getTextInputValue("embed_title");
-  const desc = interaction.fields.getTextInputValue("embed_description");
+  const channelId = interaction.fields.getTextInputValue("send_channel_id").trim();
+  const messageIdsRaw = interaction.fields.getTextInputValue("send_message_ids");
+  const text = interaction.fields.getTextInputValue("send_text")?.trim();
+  if (!text && !messageIdsRaw.trim()) {
+  return interaction.editReply(
+    "❌ En azından **bir metin** ya da **bir mesaj ID** girmelisin."
+  );
+}
 
-  const embed = new EmbedBuilder()
-    .setTitle(title)
-    .setDescription(desc)
-    .setColor(0x0099ff);
+  const targetChannel = await interaction.guild.channels.fetch(channelId).catch(() => null);
+  if (!targetChannel || !targetChannel.isTextBased()) {
+    return interaction.editReply("❌ Kanal bulunamadı veya mesaj atılamıyor.");
+  }
 
-  await channel.send({ embeds: [embed] });
+  const messageIds = messageIdsRaw
+    .split("\n")
+    .map(x => x.trim())
+    .filter(Boolean);
 
-  await interaction.reply({
-    content: "Embed gönderildi!",
-    ephemeral: true
+  const files = [];
+  const hasMessageIds = messageIdsRaw.trim().length > 0;
+
+  for (const msgId of messageIds) {
+    const msg = await targetChannel.messages.fetch(msgId).catch(() => null);
+    if (!msg) continue;
+
+    msg.attachments.forEach(att => {
+      if (att.contentType?.startsWith("image/")) {
+        files.push({
+          attachment: att.url,
+          name: att.name || "image.png"
+        });
+      }
+    });
+  }
+  if (hasMessageIds && files.length === 0) {
+  return interaction.editReply(
+    "❌ Girilen mesaj ID'lerinden görsel alınamadı."
+  );
+}
+
+
+  if (!files.length && !text) {
+    return interaction.editReply("❌ Gönderilecek metin veya görsel bulunamadı.");
+  }
+
+  await targetChannel.send({
+    content: text || null,
+    files: files.length ? files : undefined
   });
+
+  await interaction.editReply("✅ Mesaj başarıyla gönderildi.");
 });
 
 // ----------------------------------------------------
 
 client.login(process.env.TOKEN);
-
