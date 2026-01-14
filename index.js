@@ -356,7 +356,7 @@ const embed = new EmbedBuilder()
     .setTitle("AFK Mode is On")
     .setDescription(
       `You're now AFK.` +
-      `${note ? `\n📝 **Not:** ${note}` : ""}`
+      `${note ? `\n📝 **Note:** ${note}` : ""}`
     )
     .setTimestamp();
   message.react(AFK_REACTION).catch(() => {});
@@ -662,7 +662,7 @@ client.on("interactionCreate", async (interaction) => {
 
   const messageIdsInput = new TextInputBuilder()
     .setCustomId("send_message_ids")
-    .setLabel("Mesaj ID'leri (her satıra bir ID)")
+    .setLabel("KanalID:MesajID (her satıra bir)")
     .setStyle(TextInputStyle.Paragraph)
     .setRequired(false);
 
@@ -711,19 +711,32 @@ client.on("interactionCreate", async (interaction) => {
   const files = [];
   const hasMessageIds = messageIdsRaw.trim().length > 0;
 
-  for (const msgId of messageIds) {
-    const msg = await targetChannel.messages.fetch(msgId).catch(() => null);
-    if (!msg) continue;
+  for (const line of messageIds) {
+  const [sourceChannelId, messageId] = line.split(":").map(x => x.trim());
+  if (!sourceChannelId || !messageId) continue;
 
-    msg.attachments.forEach(att => {
-      if (att.contentType?.startsWith("image/")) {
-        files.push({
-          attachment: att.url,
-          name: att.name || "image.png"
-        });
-      }
-    });
-  }
+  const sourceChannel = await interaction.guild.channels
+    .fetch(sourceChannelId)
+    .catch(() => null);
+
+  if (!sourceChannel || !sourceChannel.isTextBased()) continue;
+
+  const msg = await sourceChannel.messages
+    .fetch(messageId)
+    .catch(() => null);
+
+  if (!msg) continue;
+
+  msg.attachments.forEach(att => {
+    if (att.contentType?.startsWith("image/")) {
+      files.push({
+        attachment: att.url,
+        name: att.name || "image.png"
+      });
+    }
+  });
+}
+
   if (hasMessageIds && files.length === 0) {
   return interaction.editReply(
     "❌ Girilen mesaj ID'lerinden görsel alınamadı."
