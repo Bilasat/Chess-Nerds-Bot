@@ -428,8 +428,8 @@ const embed = new EmbedBuilder()
 
       embed.addFields(
         { name: "📅 Join Date", value: member ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:D>` : "Bilinmiyor", inline: false },
-        { name: "Lichess", value: profile.lichess && profile.lichess.username ? `Kullanıcı: **${profile.lichess.username}**\nBullet: ${profile.lichess.bullet ?? "-"}\nBlitz: ${profile.lichess.blitz ?? "-"}\nRapid: ${profile.lichess.rapid ?? "-"}\nClassical: ${profile.lichess.classic ?? "-"}` : "-", inline: true },
-        { name: "Chess.com", value: profile.chesscom && profile.chesscom.username ? `Kullanıcı: **${profile.chesscom.username}**\nBullet: ${profile.chesscom.bullet ?? "-"}\nBlitz: ${profile.chesscom.blitz ?? "-"}\nRapid: ${profile.chesscom.rapid ?? "-"}\nClassical: ${profile.chesscom.classic ?? "-"}` : "-", inline: true },
+        { name: "Lichess", value: profile.lichess && profile.lichess.username ? `User: **${profile.lichess.username}**\nBullet: ${profile.lichess.bullet ?? "-"}\nBlitz: ${profile.lichess.blitz ?? "-"}\nRapid: ${profile.lichess.rapid ?? "-"}\nClassical: ${profile.lichess.classic ?? "-"}` : "-", inline: true },
+        { name: "Chess.com", value: profile.chesscom && profile.chesscom.username ? `User: **${profile.chesscom.username}**\nBullet: ${profile.chesscom.bullet ?? "-"}\nBlitz: ${profile.chesscom.blitz ?? "-"}\nRapid: ${profile.chesscom.rapid ?? "-"}\nClassical: ${profile.chesscom.classic ?? "-"}` : "-", inline: true },
         { name: "🏆 TOTAL TOURNAMENT WINS", value: `**${totalWins}**`, inline: false },
         { name: "🏆 Tournament Achievements", value: profile.wins && Object.keys(profile.wins).length ? Object.entries(profile.wins).map(([k, v]) => `• ${k}: ${v}`).join("\n") : "-", inline: false }
       );
@@ -656,7 +656,7 @@ client.on("interactionCreate", async (interaction) => {
 
   const channelIdInput = new TextInputBuilder()
     .setCustomId("send_channel_id")
-    .setLabel("Kanal ID")
+    .setLabel("Gönderilecek Kanal (ID)")
     .setStyle(TextInputStyle.Short)
     .setRequired(true);
 
